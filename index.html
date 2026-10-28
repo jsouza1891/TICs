@@ -10,7 +10,25 @@
   <link rel="apple-touch-icon" href="img/apple-touch-icon.png">
   <link rel="stylesheet" href="styles.css">
 </head>
-<body>
+<body data-estado="cargando">
+  <!-- Pantalla de inicio de sesión: la app solo se muestra con una sesión iniciada -->
+  <section id="pantallaLogin" class="login">
+    <img src="img/logo-512.png" alt="TICs" class="login-logo" width="140" height="140">
+    <p class="login-cargando">Cargando…</p>
+    <div class="login-panel">
+      <h1>Iniciar sesión</h1>
+      <form id="formLogin" class="formulario">
+        <input name="email" type="email" autocomplete="username" placeholder="Correo electrónico" required>
+        <input name="clave" type="password" autocomplete="current-password" placeholder="Contraseña" required>
+        <button type="submit">Ingresar</button>
+      </form>
+      <button id="btnOlvide" class="enlace" type="button">¿Olvidaste tu contraseña?</button>
+      <div class="separador"><span>o</span></div>
+      <button id="btnGoogle" class="secundario ancho" type="button">Continuar con Google</button>
+      <p id="loginError" class="login-error" role="alert"></p>
+    </div>
+  </section>
+
   <header class="topbar">
     <div class="marca">
       <img src="img/logo-encabezado.png" alt="TICs" height="36">

@@ -15,11 +15,12 @@ App personal de agenda, gastos e ingresos. El usuario la usa a diario en un celu
 
 ## Sincronización (Firebase)
 - Proyecto Firebase `app-asistente-565dd`, configuración en `firebase-config.js` (no es secreta).
-- Inicio de sesión con Google (Firebase Auth). Dominio autorizado agregado a mano: `jsouza1891.github.io`.
+- **Inicio de sesión obligatorio**: la app abre en una pantalla de login (`body[data-estado]`: cargando / login / app) y solo muestra datos con sesión. Métodos: correo y contraseña, o Google. El usuario (Joaquín) entra con Google; los demás (por ejemplo su hermano) con usuario y contraseña creados por él en Firebase → Authentication → Usuarios → Agregar usuario. No hay registro desde la app y el registro público está deshabilitado en la consola ("Acciones del usuario"). "Olvidé mi contraseña" y "Cambiar contraseña" usan `sendPasswordResetEmail`.
+- Cada usuario ve solo sus datos porque todo cuelga de `usuarios/{uid}`. Dominios autorizados agregados a mano: `jsouza1891.github.io` y `app.tics.com.uy`.
 - Firestore, base `(default)`, región southamerica-east1. Datos en `usuarios/{uid}/agenda/{id}` y `usuarios/{uid}/movimientos/{id}`, un documento por elemento.
-- Sin sesión, los datos van a `localStorage`. Al iniciar sesión por primera vez en un dispositivo se suben los datos locales. La clave `-dueno` en localStorage evita volver a subirlos y revivir elementos borrados desde otro equipo. Al cerrar sesión se borra la copia local.
+- Hay una copia local en `localStorage` (y la cache offline de Firestore). Al iniciar sesión por primera vez en un dispositivo se suben los datos locales. La clave `-dueno` en localStorage evita volver a subirlos y revivir elementos borrados desde otro equipo. Al cerrar sesión se borra la copia local.
 - La sección Cuenta → Sincronización muestra el estado (✅ conectado / ⏳ conectando / ⚠️ código de error). Es la primera herramienta para diagnosticar problemas.
-- **Reglas publicadas en la consola**: como `firestore.rules`, pero además solo permiten el correo del usuario (`request.auth.token.email == '<correo>'` y `email_verified`). El correo NO se escribe en el repo porque es público. Si se agrega alguien, se suma su correo en la consola.
+- **Reglas publicadas en la consola**: como `firestore.rules`, pero además solo permiten una lista de correos (`request.auth.token.email in [...]`, sin exigir `email_verified` porque los usuarios con contraseña creados en la consola no están verificados; la separación de datos la da el uid). Los correos NO se escriben en el repo porque es público. Para sumar a alguien: crear el usuario en Authentication y agregar su correo a la lista de las reglas.
 - Firebase y las reglas se cambian a mano en la consola: desde acá no hay acceso. Darle al usuario links directos, por ejemplo https://console.firebase.google.com/project/app-asistente-565dd/firestore/rules
 
 ## Marca

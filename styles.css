@@ -156,6 +156,26 @@ textarea { font: inherit; width: 100%; padding: 11px 12px; border-radius: 10px; 
 .tabs button span { font-size: 1.3rem; }
 .tabs button.activo { color: var(--primary); }
 
+/* Pantallas: cargando / login / app (atributo data-estado del body) */
+.login { display: none; }
+body:not([data-estado="app"]) > .login { display: flex; }
+body:not([data-estado="app"]) > :is(header, main, nav) { display: none; }
+body:not([data-estado="app"]) { padding-bottom: 0; }
+.login {
+  min-height: 100vh; min-height: 100dvh; flex-direction: column; align-items: center; justify-content: center;
+  padding: 24px 16px; gap: 16px;
+}
+.login-logo { width: 140px; height: 140px; border-radius: 28px; }
+.login-cargando { color: var(--muted); margin: 0; }
+body[data-estado="login"] .login-cargando, body[data-estado="cargando"] .login-panel { display: none; }
+.login-panel { width: 100%; max-width: 380px; display: grid; gap: 12px; }
+.login-panel h1 { font-size: 1.3rem; margin: 0; text-align: center; }
+.enlace { background: transparent; color: var(--primary); padding: 4px; font-weight: 500; justify-self: center; }
+.separador { display: flex; align-items: center; gap: 10px; color: var(--muted); font-size: .85rem; }
+.separador::before, .separador::after { content: ""; flex: 1; border-top: 1px solid var(--line); }
+.ancho { width: 100%; }
+.login-error { color: var(--gasto); text-align: center; min-height: 1.2em; margin: 0; }
+
 #toast {
   position: fixed; left: 50%; bottom: calc(90px + env(safe-area-inset-bottom)); transform: translateX(-50%);
   background: var(--text); color: var(--bg); padding: 10px 16px; border-radius: 999px;

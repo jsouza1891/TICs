@@ -407,20 +407,67 @@ function alCambiarUsuario(u) {
     }, errorSync));
   }
   renderCuenta();
+  mostrarPantalla(u ? 'app' : 'login');
 }
 
-function iniciarSesion() {
+// ---------- Inicio de sesión ----------
+// Los usuarios con contraseña los crea el administrador en la consola de Firebase (no hay registro desde la app).
+const ERRORES_LOGIN = {
+  'auth/invalid-credential': 'Correo o contraseña incorrectos.',
+  'auth/wrong-password': 'Correo o contraseña incorrectos.',
+  'auth/user-not-found': 'Correo o contraseña incorrectos.',
+  'auth/invalid-email': 'El correo no es válido.',
+  'auth/user-disabled': 'Este usuario está deshabilitado.',
+  'auth/too-many-requests': 'Demasiados intentos. Esperá unos minutos y probá de nuevo.',
+  'auth/network-request-failed': 'Sin conexión. Revisá internet y probá de nuevo.',
+  'auth/operation-not-allowed': 'Este método de inicio de sesión no está habilitado.',
+  'auth/admin-restricted-operation': 'Este usuario no tiene acceso. Pedile al administrador que lo cree.',
+};
+const errorLogin = (e) => { $('#loginError').textContent = ERRORES_LOGIN[e.code] || `No se pudo iniciar sesión (${e.code || 'error'}).`; };
+
+function mostrarPantalla(estado) {
+  document.body.dataset.estado = estado;
+  if (estado !== 'login') $('#loginError').textContent = '';
+}
+
+$('#formLogin').addEventListener('submit', (e) => {
+  e.preventDefault();
+  if (!db) return;
+  $('#loginError').textContent = '';
+  const f = e.target;
+  firebase.auth().signInWithEmailAndPassword(f.email.value.trim(), f.clave.value)
+    .then(() => { f.clave.value = ''; })
+    .catch(errorLogin);
+});
+
+$('#btnOlvide').addEventListener('click', () => {
+  const email = $('#formLogin').email.value.trim();
+  if (!email) { $('#loginError').textContent = 'Escribí tu correo arriba y tocá de nuevo "¿Olvidaste tu contraseña?".'; return; }
+  enviarCambioClave(email);
+});
+// El mensaje es el mismo exista o no el usuario, para no revelar qué correos tienen cuenta
+function enviarCambioClave(email) {
+  firebase.auth().sendPasswordResetEmail(email)
+    .catch(() => {})
+    .then(() => aviso('Si el correo tiene cuenta, te llega un mail para elegir contraseña'));
+}
+
+function iniciarConGoogle() {
+  if (!db) return;
+  $('#loginError').textContent = '';
   const proveedor = new firebase.auth.GoogleAuthProvider();
   firebase.auth().signInWithPopup(proveedor).catch((e) => {
     // algunos navegadores (o la app instalada en iPhone) no permiten ventanas emergentes
     if (['auth/popup-blocked', 'auth/operation-not-supported-in-this-environment'].includes(e.code)) {
       return firebase.auth().signInWithRedirect(proveedor);
     }
-    if (!['auth/popup-closed-by-user', 'auth/cancelled-popup-request'].includes(e.code)) aviso('No se pudo iniciar sesión');
+    if (!['auth/popup-closed-by-user', 'auth/cancelled-popup-request'].includes(e.code)) errorLogin(e);
   });
 }
+$('#btnGoogle').addEventListener('click', iniciarConGoogle);
+
 function cerrarSesion() {
-  if (!confirm('¿Cerrar sesión? Los datos quedan guardados en tu cuenta y se borran de este dispositivo.')) return;
+  if (!confirm('¿Cerrar sesión? Tus datos quedan guardados en tu cuenta y se borran de este dispositivo.')) return;
   firebase.auth().signOut().then(() => {
     COLECCIONES.forEach((col) => { datos[col] = []; });
     fijarDueno(null);
@@ -430,19 +477,20 @@ function cerrarSesion() {
 
 function renderCuenta() {
   const el = $('#cuenta');
-  if (!db) {
-    el.innerHTML = '<p class="ayuda">La sincronización no está disponible (sin conexión o sin configurar). Los datos se guardan solo en este dispositivo.</p>';
-  } else if (usuario) {
+  if (usuario) {
     const estado = errorSyncCodigo
       ? `⚠️ Error de sincronización: <strong>${escapar(errorSyncCodigo)}</strong>`
       : COLECCIONES.every((col) => conServidor[col]) ? '✅ Conectado con el servidor' : '⏳ Conectando con el servidor…';
+    const conClave = usuario.providerData.some((p) => p.providerId === 'password');
     el.innerHTML = `<p class="ayuda">Sesión iniciada con <strong>${escapar(usuario.email || usuario.displayName || 'tu cuenta')}</strong>.<br>${estado}</p>
-      <button id="btnSalir" class="secundario">Cerrar sesión</button>`;
+      <div class="fila-botones">
+        ${conClave ? '<button id="btnClave" class="secundario">Cambiar contraseña</button>' : ''}
+        <button id="btnSalir" class="secundario">Cerrar sesión</button>
+      </div>`;
     $('#btnSalir').addEventListener('click', cerrarSesion);
+    if (conClave) $('#btnClave').addEventListener('click', () => enviarCambioClave(usuario.email));
   } else {
-    el.innerHTML = `<button id="btnEntrar">Iniciar sesión con Google</button>
-      <p class="ayuda">Iniciá sesión con la misma cuenta en el celular y en la PC para ver los mismos datos.</p>`;
-    $('#btnEntrar').addEventListener('click', iniciarSesion);
+    el.innerHTML = '';
   }
 }
 
@@ -452,6 +500,10 @@ if (window.firebase && window.FIREBASE_CONFIG) {
   db.enablePersistence({ synchronizeTabs: true }).catch(() => { /* sin cache offline, igual funciona */ });
   firebase.auth().getRedirectResult().catch(() => aviso('No se pudo iniciar sesión'));
   firebase.auth().onAuthStateChanged(alCambiarUsuario);
+} else {
+  // sin el SDK de Firebase (primera apertura sin conexión) no se puede iniciar sesión
+  mostrarPantalla('login');
+  $('#loginError').textContent = 'No se pudo conectar. Revisá internet y volvé a abrir la app.';
 }
 renderCuenta();
 
