@@ -8,7 +8,9 @@ App personal de agenda, gastos e ingresos. El usuario la usa a diario en un celu
 - Montos con formato `es-UY` ($1.500,00). Fechas guardadas como `YYYY-MM-DD` en hora local.
 
 ## Publicación
-- GitHub Pages desde la rama `main`, carpeta raíz: https://jsouza1891.github.io/TICs/
+- GitHub Pages desde la rama `main`, carpeta raíz, con dominio propio **https://app.tics.com.uy** (archivo `CNAME`; el link viejo jsouza1891.github.io/TICs redirige solo).
+- DNS: el dominio tics.com.uy está registrado en Antel (Vera) con nameservers de Spaceship; los registros se editan en Spaceship → Administrador de Hosting → tics.com.uy → "DNS avanzado". Ahí hay un CNAME `app` → `jsouza1891.github.io`. Los registros del grupo "Web Hosting" son de su página y FTP: no tocarlos.
+- `app.tics.com.uy` también está en los dominios autorizados de Firebase Auth.
 - Se trabaja en la rama de la sesión y se publica empujando a `main`. Tras publicar, el usuario cierra y abre la app en el celular y recarga con Ctrl+Shift+R en la PC (la caché vieja ya causó confusiones una vez).
 
 ## Sincronización (Firebase)
