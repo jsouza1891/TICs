@@ -102,6 +102,23 @@
     <button data-vista="cuenta"><span>⚙️</span>Cuenta</button>
   </nav>
 
+  <!-- Detalle de una tarea: estado y bitácora de actualizaciones -->
+  <dialog id="detalle" class="detalle">
+    <div class="detalle-cab">
+      <div class="detalle-titulo" id="detTitulo"></div>
+      <button class="icon" id="detCerrar" aria-label="Cerrar">✕</button>
+    </div>
+    <div class="sec" id="detInfo"></div>
+    <label class="check"><input type="checkbox" id="detHecho"> Trabajo realizado</label>
+    <div class="sec" id="detHechoEn"></div>
+    <h2>Actualizaciones</h2>
+    <ul id="detActualizaciones" class="bitacora"></ul>
+    <form id="formActualizacion" class="formulario">
+      <textarea name="texto" rows="3" maxlength="1000" placeholder="Agregar comentario o avance…" required></textarea>
+      <button type="submit">Agregar actualización</button>
+    </form>
+  </dialog>
+
   <div id="toast" role="status"></div>
   <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>

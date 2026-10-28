@@ -118,9 +118,12 @@ function urgencia(ev) {
 function itemAgenda(ev, conFecha) {
   const sec = [conFecha ? fmtCorto(ev.fecha) : '', ev.hora, ev.nota].filter(Boolean).map(escapar).join(' · ');
   const area = areaDe(ev);
+  const acts = ev.actualizaciones || [];
+  const ultima = acts.length
+    ? `<div class="sec ultima">💬 ${acts.length} · ${escapar(acts[acts.length - 1].texto)}</div>` : '';
   return `<li class="item ${ev.hecho ? 'hecho' : ''} ${urgencia(ev)}" data-id="${ev.id}">
     <input type="checkbox" class="toggle" ${ev.hecho ? 'checked' : ''} aria-label="Marcar como hecho">
-    <div class="info"><div class="principal">${escapar(ev.titulo)} <span class="etiqueta ${area}">${area === 'laboral' ? 'Laboral' : 'Personal'}</span></div>${sec ? `<div class="sec">${sec}</div>` : ''}</div>
+    <div class="info abrir-detalle"><div class="principal">${escapar(ev.titulo)} <span class="etiqueta ${area}">${area === 'laboral' ? 'Laboral' : 'Personal'}</span></div>${sec ? `<div class="sec">${sec}</div>` : ''}${ultima}</div>
     <button class="borrar" data-tipo="agenda" aria-label="Eliminar">✕</button>
   </li>`;
 }
@@ -234,8 +237,66 @@ document.addEventListener('click', (e) => {
 document.addEventListener('change', (e) => {
   if (!e.target.classList.contains('toggle')) return;
   const ev = datos.agenda.find((x) => x.id === e.target.closest('[data-id]').dataset.id);
-  if (ev) actualizar('agenda', ev.id, { hecho: e.target.checked });
+  if (ev) marcarHecho(ev, e.target.checked);
 });
+
+// hechoEn guarda cuándo se terminó el trabajo, para llevar el control de lo realizado
+const marcarHecho = (ev, hecho) => actualizar('agenda', ev.id, { hecho, hechoEn: hecho ? new Date().toISOString() : null });
+
+// ---------- Detalle de tarea y actualizaciones ----------
+const fmtMomento = (iso) => new Date(iso).toLocaleString('es-UY', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit', hour12: false });
+let detalleId = null;
+const eventoDetalle = () => datos.agenda.find((x) => x.id === detalleId);
+
+document.addEventListener('click', (e) => {
+  const info = e.target.closest('.abrir-detalle');
+  if (!info) return;
+  detalleId = info.closest('[data-id]').dataset.id;
+  renderDetalle();
+  $('#detalle').showModal();
+});
+$('#detCerrar').addEventListener('click', () => $('#detalle').close());
+$('#detalle').addEventListener('close', () => { detalleId = null; });
+$('#detHecho').addEventListener('change', (e) => {
+  const ev = eventoDetalle();
+  if (ev) marcarHecho(ev, e.target.checked);
+});
+
+$('#formActualizacion').addEventListener('submit', (e) => {
+  e.preventDefault();
+  const ev = eventoDetalle();
+  const texto = e.target.texto.value.trim();
+  if (!ev || !texto) return;
+  const nueva = { id: nuevoId(), texto, fecha: new Date().toISOString() };
+  actualizar('agenda', ev.id, { actualizaciones: [...(ev.actualizaciones || []), nueva] });
+  e.target.texto.value = '';
+});
+$('#detActualizaciones').addEventListener('click', (e) => {
+  const btn = e.target.closest('.borrar-act');
+  const ev = eventoDetalle();
+  if (!btn || !ev || !confirm('¿Eliminar esta actualización?')) return;
+  actualizar('agenda', ev.id, { actualizaciones: (ev.actualizaciones || []).filter((a) => a.id !== btn.dataset.id) });
+});
+
+// Se llama en cada render, así el detalle abierto refleja cambios hechos desde otro dispositivo
+function renderDetalle() {
+  if (!detalleId) return;
+  const ev = eventoDetalle();
+  if (!ev) { $('#detalle').close(); return; }
+  const area = areaDe(ev);
+  $('#detTitulo').innerHTML = `${escapar(ev.titulo)} <span class="etiqueta ${area}">${area === 'laboral' ? 'Laboral' : 'Personal'}</span>`;
+  $('#detInfo').textContent = [fmtDia(ev.fecha), ev.hora, ev.nota].filter(Boolean).join(' · ');
+  $('#detHecho').checked = !!ev.hecho;
+  $('#detHechoEn').textContent = ev.hecho && ev.hechoEn ? `Realizado el ${fmtMomento(ev.hechoEn)}` : '';
+  const acts = ev.actualizaciones || [];
+  $('#detActualizaciones').innerHTML = acts.length
+    ? acts.map((a) => `<li>
+        <div class="act-cab"><span>${fmtMomento(a.fecha)}</span>
+          <button class="borrar borrar-act" data-id="${a.id}" aria-label="Eliminar actualización">✕</button></div>
+        <div class="act-texto">${escapar(a.texto)}</div>
+      </li>`).join('')
+    : '<li class="vacio">Todavía no hay actualizaciones</li>';
+}
 
 // ---------- Respaldo ----------
 $('#btnExportar').addEventListener('click', () => {
@@ -401,6 +462,7 @@ function render() {
   renderResumen();
   renderAgenda();
   renderMovimientos();
+  renderDetalle();
 }
 render();
 // los colores de vencimiento dependen de la hora: se recalculan cada minuto

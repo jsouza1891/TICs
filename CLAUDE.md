@@ -16,7 +16,7 @@ App personal de agenda, gastos e ingresos. El usuario la usa a diario en un celu
 - Inicio de sesión con Google (Firebase Auth). Dominio autorizado agregado a mano: `jsouza1891.github.io`.
 - Firestore, base `(default)`, región southamerica-east1. Datos en `usuarios/{uid}/agenda/{id}` y `usuarios/{uid}/movimientos/{id}`, un documento por elemento.
 - Sin sesión, los datos van a `localStorage`. Al iniciar sesión por primera vez en un dispositivo se suben los datos locales. La clave `-dueno` en localStorage evita volver a subirlos y revivir elementos borrados desde otro equipo. Al cerrar sesión se borra la copia local.
-- La sección Resumen → Sincronización muestra el estado (✅ conectado / ⏳ conectando / ⚠️ código de error). Es la primera herramienta para diagnosticar problemas.
+- La sección Cuenta → Sincronización muestra el estado (✅ conectado / ⏳ conectando / ⚠️ código de error). Es la primera herramienta para diagnosticar problemas.
 - **Reglas publicadas en la consola**: como `firestore.rules`, pero además solo permiten el correo del usuario (`request.auth.token.email == '<correo>'` y `email_verified`). El correo NO se escribe en el repo porque es público. Si se agrega alguien, se suma su correo en la consola.
 - Firebase y las reglas se cambian a mano en la consola: desde acá no hay acceso. Darle al usuario links directos, por ejemplo https://console.firebase.google.com/project/app-asistente-565dd/firestore/rules
 
@@ -26,7 +26,7 @@ App personal de agenda, gastos e ingresos. El usuario la usa a diario en un celu
 ## Funcionalidades y decisiones
 - **Pestañas: Agenda | Dinero | Cuenta.** La parte económica está separada a propósito: el usuario muestra o comparte tareas con otras personas y no quiere que vean su dinero. La app abre en Agenda, y nada económico debe aparecer en esa pestaña.
 - **Cuenta**: sincronización y respaldo (exportar/importar JSON).
-- **Agenda** (pestaña inicial): área Personal o Laboral (campo `area`; los elementos sin el campo cuentan como personales), con filtros Todas/Personal/Laboral. Colores: amarillo si vence en 24 h o menos, rojo si ya venció. El vencimiento es la hora indicada o fin del día si no tiene hora. Se recalcula cada minuto.
+- **Agenda** (pestaña inicial): área Personal o Laboral (campo `area`; los elementos sin el campo cuentan como personales), con filtros Todas/Personal/Laboral. Colores: amarillo si vence en 24 h o menos, rojo si ya venció. El vencimiento es la hora indicada o fin del día si no tiene hora. Se recalcula cada minuto. La usa sobre todo como agenda de trabajo: tocando una tarea se abre el detalle (`<dialog>`) con la bitácora `actualizaciones` (`[{id, texto, fecha ISO}]`, se agregan y borran) y "Trabajo realizado", que guarda `hechoEn` (fecha ISO de cuando se terminó). La lista muestra 💬 cantidad y la última actualización.
 - **Dinero**: selector de mes (solo visible en esta pestaña), resumen del mes (ingresos, gastos, balance, gastos por categoría) y movimientos. Categorías de gasto pedidas por el usuario: Personal, Comida, Servicios, Ocio, Proveedores, Ventas, Otros. De ingreso: Sueldo, Ventas, Servicios, Otros. Los movimientos viejos conservan su categoría aunque ya no esté en la lista.
 
 ## Ideas pendientes ofrecidas (no pedidas todavía)
