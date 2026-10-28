@@ -47,7 +47,7 @@ function aviso(texto) {
 const ahora = new Date();
 let mesActual = { anio: ahora.getFullYear(), mes: ahora.getMonth() }; // mes 0-11
 let filtroMov = 'todos';
-const TITULOS = { resumen: 'Resumen', agenda: 'Agenda', dinero: 'Dinero' };
+const TITULOS = { agenda: 'Agenda', dinero: 'Dinero', cuenta: 'Cuenta' };
 
 const claveMes = () => `${mesActual.anio}-${pad(mesActual.mes + 1)}`;
 const enMes = (iso) => iso.startsWith(claveMes());
@@ -57,8 +57,8 @@ $$('.tabs button').forEach((b) => b.addEventListener('click', () => {
   $$('.tabs button').forEach((x) => x.classList.toggle('activo', x === b));
   $$('.vista').forEach((v) => v.classList.toggle('activa', v.id === 'vista-' + b.dataset.vista));
   $('#titulo').textContent = TITULOS[b.dataset.vista];
-  // la agenda muestra todo lo pendiente, el selector de mes no aplica
-  $('.mes').style.visibility = b.dataset.vista === 'agenda' ? 'hidden' : 'visible';
+  // el selector de mes solo aplica a la parte económica
+  $('.mes').style.visibility = b.dataset.vista === 'dinero' ? 'visible' : 'hidden';
 }));
 
 function cambiarMes(delta) {
@@ -221,14 +221,6 @@ function renderResumen() {
         <div class="pista"><div class="relleno" style="width:${(v / max) * 100}%"></div></div>
       </div>`).join('')
     : '<p class="vacio">Sin gastos este mes</p>';
-
-  // todos los vencidos, y después los próximos 5
-  const pendientes = datos.agenda.filter((e) => !e.hecho).sort(ordenAgenda);
-  const vencidos = pendientes.filter((e) => urgencia(e) === 'vencido');
-  const proximos = [...vencidos, ...pendientes.filter((e) => urgencia(e) !== 'vencido').slice(0, 5)];
-  $('#proximos').innerHTML = proximos.length
-    ? proximos.map((e) => itemAgenda(e, true)).join('')
-    : '<li class="vacio">Nada agendado</li>';
 }
 
 // ---------- Acciones en listas (delegación) ----------

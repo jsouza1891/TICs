@@ -12,8 +12,8 @@
 </head>
 <body>
   <header class="topbar">
-    <h1 id="titulo">Resumen</h1>
-    <div class="mes">
+    <h1 id="titulo">Agenda</h1>
+    <div class="mes" style="visibility: hidden">
       <button class="icon" id="mesPrev" aria-label="Mes anterior">‹</button>
       <span id="mesLabel"></span>
       <button class="icon" id="mesNext" aria-label="Mes siguiente">›</button>
@@ -21,35 +21,8 @@
   </header>
 
   <main>
-    <!-- RESUMEN -->
-    <section id="vista-resumen" class="vista activa">
-      <div class="tarjetas">
-        <div class="tarjeta ingreso"><span>Ingresos</span><strong id="totIngresos">$0</strong></div>
-        <div class="tarjeta gasto"><span>Gastos</span><strong id="totGastos">$0</strong></div>
-        <div class="tarjeta balance"><span>Balance</span><strong id="totBalance">$0</strong></div>
-      </div>
-
-      <h2>Gastos por categoría</h2>
-      <div id="porCategoria" class="barras"></div>
-
-      <h2>Pendientes</h2>
-      <ul id="proximos" class="lista"></ul>
-
-      <h2>Sincronización</h2>
-      <div id="cuenta"></div>
-
-      <h2>Respaldo</h2>
-      <div class="fila-botones">
-        <button id="btnExportar" class="secundario">Exportar datos</button>
-        <label class="boton secundario">Importar datos
-          <input type="file" id="inputImportar" accept="application/json" hidden>
-        </label>
-      </div>
-      <p class="ayuda">Los datos se guardan solo en este dispositivo. Exportá un respaldo de vez en cuando.</p>
-    </section>
-
     <!-- AGENDA -->
-    <section id="vista-agenda" class="vista">
+    <section id="vista-agenda" class="vista activa">
       <form id="formAgenda" class="formulario">
         <div class="segmentado" role="radiogroup">
           <label><input type="radio" name="area" value="personal" checked><span>Personal</span></label>
@@ -72,8 +45,18 @@
       <div id="listaAgenda"></div>
     </section>
 
-    <!-- MOVIMIENTOS -->
+    <!-- DINERO: resumen del mes y movimientos -->
     <section id="vista-dinero" class="vista">
+      <div class="tarjetas">
+        <div class="tarjeta ingreso"><span>Ingresos</span><strong id="totIngresos">$0</strong></div>
+        <div class="tarjeta gasto"><span>Gastos</span><strong id="totGastos">$0</strong></div>
+        <div class="tarjeta balance"><span>Balance</span><strong id="totBalance">$0</strong></div>
+      </div>
+
+      <h2>Gastos por categoría</h2>
+      <div id="porCategoria" class="barras"></div>
+
+      <h2>Movimientos</h2>
       <form id="formMov" class="formulario">
         <div class="segmentado" role="radiogroup">
           <label><input type="radio" name="tipo" value="gasto" checked><span>Gasto</span></label>
@@ -94,12 +77,26 @@
       </div>
       <ul id="listaMov" class="lista"></ul>
     </section>
+    <!-- CUENTA -->
+    <section id="vista-cuenta" class="vista">
+      <h2>Sincronización</h2>
+      <div id="cuenta"></div>
+
+      <h2>Respaldo</h2>
+      <div class="fila-botones">
+        <button id="btnExportar" class="secundario">Exportar datos</button>
+        <label class="boton secundario">Importar datos
+          <input type="file" id="inputImportar" accept="application/json" hidden>
+        </label>
+      </div>
+      <p class="ayuda">Descarga una copia de todos tus datos en un archivo, por las dudas.</p>
+    </section>
   </main>
 
   <nav class="tabs">
-    <button data-vista="resumen" class="activo"><span>📊</span>Resumen</button>
-    <button data-vista="agenda"><span>📅</span>Agenda</button>
+    <button data-vista="agenda" class="activo"><span>📅</span>Agenda</button>
     <button data-vista="dinero"><span>💰</span>Dinero</button>
+    <button data-vista="cuenta"><span>⚙️</span>Cuenta</button>
   </nav>
 
   <div id="toast" role="status"></div>
