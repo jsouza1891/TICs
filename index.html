@@ -1,0 +1,96 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#2f6fed">
+  <title>Mi Asistente</title>
+  <link rel="manifest" href="manifest.webmanifest">
+  <link rel="icon" href="icon.svg" type="image/svg+xml">
+  <link rel="apple-touch-icon" href="icon.svg">
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <header class="topbar">
+    <h1 id="titulo">Resumen</h1>
+    <div class="mes">
+      <button class="icon" id="mesPrev" aria-label="Mes anterior">‹</button>
+      <span id="mesLabel"></span>
+      <button class="icon" id="mesNext" aria-label="Mes siguiente">›</button>
+    </div>
+  </header>
+
+  <main>
+    <!-- RESUMEN -->
+    <section id="vista-resumen" class="vista activa">
+      <div class="tarjetas">
+        <div class="tarjeta ingreso"><span>Ingresos</span><strong id="totIngresos">$0</strong></div>
+        <div class="tarjeta gasto"><span>Gastos</span><strong id="totGastos">$0</strong></div>
+        <div class="tarjeta balance"><span>Balance</span><strong id="totBalance">$0</strong></div>
+      </div>
+
+      <h2>Gastos por categoría</h2>
+      <div id="porCategoria" class="barras"></div>
+
+      <h2>Próximos eventos</h2>
+      <ul id="proximos" class="lista"></ul>
+
+      <h2>Respaldo</h2>
+      <div class="fila-botones">
+        <button id="btnExportar" class="secundario">Exportar datos</button>
+        <label class="boton secundario">Importar datos
+          <input type="file" id="inputImportar" accept="application/json" hidden>
+        </label>
+      </div>
+      <p class="ayuda">Los datos se guardan solo en este dispositivo. Exportá un respaldo de vez en cuando.</p>
+    </section>
+
+    <!-- AGENDA -->
+    <section id="vista-agenda" class="vista">
+      <form id="formAgenda" class="formulario">
+        <input name="titulo" placeholder="¿Qué tenés que hacer?" required maxlength="120">
+        <div class="fila">
+          <input name="fecha" type="date" required>
+          <input name="hora" type="time">
+        </div>
+        <input name="nota" placeholder="Nota (opcional)" maxlength="300">
+        <button type="submit">Agregar a la agenda</button>
+      </form>
+      <label class="check"><input type="checkbox" id="verHechos"> Mostrar completados</label>
+      <div id="listaAgenda"></div>
+    </section>
+
+    <!-- MOVIMIENTOS -->
+    <section id="vista-dinero" class="vista">
+      <form id="formMov" class="formulario">
+        <div class="segmentado" role="radiogroup">
+          <label><input type="radio" name="tipo" value="gasto" checked><span>Gasto</span></label>
+          <label><input type="radio" name="tipo" value="ingreso"><span>Ingreso</span></label>
+        </div>
+        <div class="fila">
+          <input name="monto" type="number" inputmode="decimal" step="0.01" min="0.01" placeholder="Monto" required>
+          <input name="fecha" type="date" required>
+        </div>
+        <select name="categoria" id="selCategoria"></select>
+        <input name="descripcion" placeholder="Descripción (opcional)" maxlength="120">
+        <button type="submit">Guardar movimiento</button>
+      </form>
+      <div class="filtros">
+        <button data-filtro="todos" class="chip activo">Todos</button>
+        <button data-filtro="gasto" class="chip">Gastos</button>
+        <button data-filtro="ingreso" class="chip">Ingresos</button>
+      </div>
+      <ul id="listaMov" class="lista"></ul>
+    </section>
+  </main>
+
+  <nav class="tabs">
+    <button data-vista="resumen" class="activo"><span>📊</span>Resumen</button>
+    <button data-vista="agenda"><span>📅</span>Agenda</button>
+    <button data-vista="dinero"><span>💰</span>Dinero</button>
+  </nav>
+
+  <div id="toast" role="status"></div>
+  <script src="app.js"></script>
+</body>
+</html>

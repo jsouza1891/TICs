@@ -1,0 +1,13 @@
+{
+  "name": "Mi Asistente Personal",
+  "short_name": "Asistente",
+  "description": "Agenda, gastos e ingresos en un solo lugar",
+  "start_url": "./",
+  "display": "standalone",
+  "background_color": "#f4f6fb",
+  "theme_color": "#2f6fed",
+  "lang": "es",
+  "icons": [
+    { "src": "icon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any maskable" }
+  ]
+}
