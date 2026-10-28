@@ -1,6 +1,6 @@
 {
-  "name": "Mi Asistente Personal",
-  "short_name": "Asistente",
+  "name": "TICS APP",
+  "short_name": "TICS APP",
   "description": "Agenda, gastos e ingresos en un solo lugar",
   "start_url": "./",
   "display": "standalone",

@@ -1,4 +1,4 @@
-# Notas del proyecto: Mi Asistente Personal
+# Notas del proyecto: TICS APP (antes "Mi Asistente Personal")
 
 App personal de agenda, gastos e ingresos. El usuario la usa a diario en un celular Android (instalada como PWA desde Chrome) y en la PC (Chrome). Se habla en español rioplatense (Uruguay). Se mejora de a poco según el uso: cambios chicos, probados y publicados.
 
