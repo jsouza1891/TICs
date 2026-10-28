@@ -3,7 +3,7 @@
 const CLAVE = 'asistente-personal-v1';
 const CATEGORIAS = {
   gasto: ['Personal', 'Comida', 'Servicios', 'Ocio', 'Proveedores', 'Ventas', 'Otros'],
-  ingreso: ['Sueldo', 'Freelance', 'Ventas', 'Regalo', 'Otros'],
+  ingreso: ['Sueldo', 'Ventas', 'Servicios', 'Otros'],
 };
 
 // ---------- Datos ----------

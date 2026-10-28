@@ -24,7 +24,7 @@ App personal de agenda, gastos e ingresos. El usuario la usa a diario en un celu
 - **Pestañas: Agenda | Dinero | Cuenta.** La parte económica está separada a propósito: el usuario muestra o comparte tareas con otras personas y no quiere que vean su dinero. La app abre en Agenda, y nada económico debe aparecer en esa pestaña.
 - **Cuenta**: sincronización y respaldo (exportar/importar JSON).
 - **Agenda** (pestaña inicial): área Personal o Laboral (campo `area`; los elementos sin el campo cuentan como personales), con filtros Todas/Personal/Laboral. Colores: amarillo si vence en 24 h o menos, rojo si ya venció. El vencimiento es la hora indicada o fin del día si no tiene hora. Se recalcula cada minuto.
-- **Dinero**: selector de mes (solo visible en esta pestaña), resumen del mes (ingresos, gastos, balance, gastos por categoría) y movimientos. Categorías de gasto pedidas por el usuario: Personal, Comida, Servicios, Ocio, Proveedores, Ventas, Otros. De ingreso: Sueldo, Freelance, Ventas, Regalo, Otros. Los movimientos viejos conservan su categoría aunque ya no esté en la lista.
+- **Dinero**: selector de mes (solo visible en esta pestaña), resumen del mes (ingresos, gastos, balance, gastos por categoría) y movimientos. Categorías de gasto pedidas por el usuario: Personal, Comida, Servicios, Ocio, Proveedores, Ventas, Otros. De ingreso: Sueldo, Ventas, Servicios, Otros. Los movimientos viejos conservan su categoría aunque ya no esté en la lista.
 
 ## Ideas pendientes ofrecidas (no pedidas todavía)
 Aviso de versión nueva, editar eventos y movimientos, categorías personalizables, gastos fijos mensuales, presupuesto por categoría, recordatorios con notificación, gráfico de evolución mensual.
