@@ -55,6 +55,8 @@ h2 { font-size: 0.95rem; color: var(--muted); margin: 24px 0 10px; text-transfor
   background: var(--bg); border-bottom: 1px solid var(--line);
 }
 .topbar h1 { font-size: 1.25rem; margin: 0; }
+.marca { display: flex; align-items: center; gap: 10px; }
+.marca img { height: 36px; width: auto; border-radius: 8px; display: block; }
 .mes { display: flex; align-items: center; gap: 4px; font-weight: 600; }
 .mes span { min-width: 120px; text-align: center; }
 

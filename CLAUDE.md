@@ -20,6 +20,9 @@ App personal de agenda, gastos e ingresos. El usuario la usa a diario en un celu
 - **Reglas publicadas en la consola**: como `firestore.rules`, pero además solo permiten el correo del usuario (`request.auth.token.email == '<correo>'` y `email_verified`). El correo NO se escribe en el repo porque es público. Si se agrega alguien, se suma su correo en la consola.
 - Firebase y las reglas se cambian a mano en la consola: desde acá no hay acceso. Darle al usuario links directos, por ejemplo https://console.firebase.google.com/project/app-asistente-565dd/firestore/rules
 
+## Marca
+- Logo de la empresa del usuario (TICs, "Tecnología a medida"): fondo gris oscuro #373e46, letras blancas y amarillo #fcb817. Está en `img/`: íconos de la app (versiones normal y "maskable" con margen para que Android no corte el texto) y `logo-encabezado.png` (solo "TICs", sin el lema, porque a 36 px no se lee) en el encabezado. Para regenerarlos se parte de la imagen original cuadrada con Pillow.
+
 ## Funcionalidades y decisiones
 - **Pestañas: Agenda | Dinero | Cuenta.** La parte económica está separada a propósito: el usuario muestra o comparte tareas con otras personas y no quiere que vean su dinero. La app abre en Agenda, y nada económico debe aparecer en esa pestaña.
 - **Cuenta**: sincronización y respaldo (exportar/importar JSON).

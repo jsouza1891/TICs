@@ -4,10 +4,13 @@
   "description": "Agenda, gastos e ingresos en un solo lugar",
   "start_url": "./",
   "display": "standalone",
-  "background_color": "#f4f6fb",
+  "background_color": "#373e46",
   "theme_color": "#2f6fed",
   "lang": "es",
   "icons": [
-    { "src": "icon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any maskable" }
+    { "src": "img/logo-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "img/logo-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
+    { "src": "img/logo-maskable-192.png", "sizes": "192x192", "type": "image/png", "purpose": "maskable" },
+    { "src": "img/logo-maskable-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
   ]
 }

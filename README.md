@@ -32,4 +32,4 @@ y desde el navegador del teléfono elegí **"Agregar a pantalla de inicio"**.
 | `styles.css` | Estilos (modo claro/oscuro, diseño para celular) |
 | `app.js` | Lógica: guardar, listar, borrar, resumen, respaldo |
 | `sw.js` | Service worker para uso sin conexión |
-| `manifest.webmanifest`, `icon.svg` | Datos para instalarla como app |
+| `manifest.webmanifest`, `img/` | Datos e íconos (logo de TICs) para instalarla como app |
