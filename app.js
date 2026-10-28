@@ -19,6 +19,7 @@ function guardar() {
   catch (e) { aviso('No se pudo guardar en este dispositivo'); }
 }
 const datos = cargar();
+const COLECCIONES = ['agenda', 'movimientos'];
 const nuevoId = () => Date.now().toString(36) + Math.random().toString(36).slice(2, 7);
 
 // ---------- Utilidades ----------
@@ -74,7 +75,7 @@ formAgenda.fecha.value = hoyISO();
 formAgenda.addEventListener('submit', (e) => {
   e.preventDefault();
   const f = formAgenda;
-  datos.agenda.push({
+  agregar('agenda', {
     id: nuevoId(),
     titulo: f.titulo.value.trim(),
     fecha: f.fecha.value,
@@ -82,10 +83,8 @@ formAgenda.addEventListener('submit', (e) => {
     nota: f.nota.value.trim(),
     hecho: false,
   });
-  guardar();
   f.titulo.value = ''; f.hora.value = ''; f.nota.value = '';
   aviso('Evento agregado');
-  render();
 });
 $('#verHechos').addEventListener('change', render);
 
@@ -138,7 +137,7 @@ formMov.addEventListener('submit', (e) => {
   const f = formMov;
   const monto = Math.round(parseFloat(f.monto.value) * 100) / 100;
   if (!(monto > 0)) return aviso('Ingresá un monto válido');
-  datos.movimientos.push({
+  agregar('movimientos', {
     id: nuevoId(),
     tipo: f.tipo.value,
     monto,
@@ -146,10 +145,8 @@ formMov.addEventListener('submit', (e) => {
     fecha: f.fecha.value,
     descripcion: f.descripcion.value.trim(),
   });
-  guardar();
   f.monto.value = ''; f.descripcion.value = '';
   aviso(f.tipo.value === 'gasto' ? 'Gasto guardado' : 'Ingreso guardado');
-  render();
 });
 
 $$('.filtros .chip').forEach((c) => c.addEventListener('click', () => {
@@ -210,15 +207,12 @@ document.addEventListener('click', (e) => {
   if (!btn) return;
   const id = btn.closest('[data-id]').dataset.id;
   if (!confirm('¿Eliminar este elemento?')) return;
-  const col = btn.dataset.tipo === 'agenda' ? 'agenda' : 'movimientos';
-  datos[col] = datos[col].filter((x) => x.id !== id);
-  guardar();
-  render();
+  eliminar(btn.dataset.tipo === 'agenda' ? 'agenda' : 'movimientos', id);
 });
 document.addEventListener('change', (e) => {
   if (!e.target.classList.contains('toggle')) return;
   const ev = datos.agenda.find((x) => x.id === e.target.closest('[data-id]').dataset.id);
-  if (ev) { ev.hecho = e.target.checked; guardar(); render(); }
+  if (ev) actualizar('agenda', ev.id, { hecho: e.target.checked });
 });
 
 // ---------- Respaldo ----------
@@ -237,10 +231,9 @@ $('#inputImportar').addEventListener('change', async (e) => {
     const d = JSON.parse(await archivo.text());
     if (!Array.isArray(d.agenda) || !Array.isArray(d.movimientos)) throw new Error('formato');
     if (!confirm('Esto reemplaza los datos actuales. ¿Continuar?')) return;
-    datos.agenda = d.agenda;
-    datos.movimientos = d.movimientos;
-    guardar();
-    render();
+    // los respaldos viejos o editados a mano pueden traer elementos sin id
+    COLECCIONES.forEach((col) => d[col].forEach((x) => { x.id = x.id || nuevoId(); }));
+    reemplazarTodo(d);
     aviso('Datos importados');
   } catch (err) {
     aviso('Archivo no válido');
@@ -248,6 +241,122 @@ $('#inputImportar').addEventListener('change', async (e) => {
     e.target.value = '';
   }
 });
+
+// ---------- Guardado: local o sincronizado con Firebase ----------
+// Sin sesión iniciada los datos viven en localStorage. Con sesión, cada evento y
+// movimiento es un documento en usuarios/{uid}/{colección}/{id}; los cambios se
+// escriben en Firestore y vuelven por onSnapshot (al instante, incluso sin conexión).
+const CLAVE_DUENO = CLAVE + '-dueno'; // uid al que pertenece la copia local
+let usuario = null;
+let db = null;
+let desuscribir = [];
+
+const leerDueno = () => { try { return localStorage.getItem(CLAVE_DUENO); } catch (e) { return null; } };
+function fijarDueno(uid) {
+  try { uid ? localStorage.setItem(CLAVE_DUENO, uid) : localStorage.removeItem(CLAVE_DUENO); } catch (e) { /* sin almacenamiento */ }
+}
+const refCol = (col) => db.collection('usuarios').doc(usuario.uid).collection(col);
+const errorSync = () => aviso('No se pudo sincronizar');
+
+function agregar(col, item) {
+  if (usuario) return void refCol(col).doc(item.id).set(item).catch(errorSync);
+  datos[col].push(item);
+  guardar(); render();
+}
+function actualizar(col, id, cambios) {
+  if (usuario) return void refCol(col).doc(id).update(cambios).catch(errorSync);
+  Object.assign(datos[col].find((x) => x.id === id) || {}, cambios);
+  guardar(); render();
+}
+function eliminar(col, id) {
+  if (usuario) return void refCol(col).doc(id).delete().catch(errorSync);
+  datos[col] = datos[col].filter((x) => x.id !== id);
+  guardar(); render();
+}
+
+// Escribe varias operaciones en lotes (Firestore admite hasta 500 por lote).
+// No se espera la confirmación del servidor: sin conexión quedan en cola.
+function escribirEnLotes(ops) {
+  const promesas = [];
+  for (let i = 0; i < ops.length; i += 400) {
+    const lote = db.batch();
+    ops.slice(i, i + 400).forEach(([ref, item]) => (item ? lote.set(ref, item) : lote.delete(ref)));
+    promesas.push(lote.commit());
+  }
+  Promise.all(promesas).catch(errorSync);
+}
+const opsSubir = (d) => COLECCIONES.flatMap((col) => d[col].map((item) => [refCol(col).doc(item.id), item]));
+
+function reemplazarTodo(d) {
+  if (usuario) {
+    const borrar = COLECCIONES.flatMap((col) => datos[col]
+      .filter((x) => !d[col].some((y) => y.id === x.id))
+      .map((x) => [refCol(col).doc(x.id), null]));
+    return escribirEnLotes([...borrar, ...opsSubir(d)]);
+  }
+  COLECCIONES.forEach((col) => { datos[col] = d[col]; });
+  guardar(); render();
+}
+
+function alCambiarUsuario(u) {
+  desuscribir.forEach((f) => f());
+  desuscribir = [];
+  usuario = u;
+  if (u) {
+    // Lo cargado antes de iniciar sesión por primera vez en este dispositivo se sube a la cuenta.
+    // Si la copia local ya es de esta cuenta no se sube, para no revivir lo borrado desde otro equipo.
+    if (!leerDueno()) escribirEnLotes(opsSubir(datos));
+    fijarDueno(u.uid);
+    desuscribir = COLECCIONES.map((col) => refCol(col).onSnapshot((snap) => {
+      datos[col] = snap.docs.map((doc) => doc.data());
+      guardar(); render();
+    }, errorSync));
+  }
+  renderCuenta();
+}
+
+function iniciarSesion() {
+  const proveedor = new firebase.auth.GoogleAuthProvider();
+  firebase.auth().signInWithPopup(proveedor).catch((e) => {
+    // algunos navegadores (o la app instalada en iPhone) no permiten ventanas emergentes
+    if (['auth/popup-blocked', 'auth/operation-not-supported-in-this-environment'].includes(e.code)) {
+      return firebase.auth().signInWithRedirect(proveedor);
+    }
+    if (!['auth/popup-closed-by-user', 'auth/cancelled-popup-request'].includes(e.code)) aviso('No se pudo iniciar sesión');
+  });
+}
+function cerrarSesion() {
+  if (!confirm('¿Cerrar sesión? Los datos quedan guardados en tu cuenta y se borran de este dispositivo.')) return;
+  firebase.auth().signOut().then(() => {
+    COLECCIONES.forEach((col) => { datos[col] = []; });
+    fijarDueno(null);
+    guardar(); render();
+  });
+}
+
+function renderCuenta() {
+  const el = $('#cuenta');
+  if (!db) {
+    el.innerHTML = '<p class="ayuda">La sincronización no está disponible (sin conexión o sin configurar). Los datos se guardan solo en este dispositivo.</p>';
+  } else if (usuario) {
+    el.innerHTML = `<p class="ayuda">Sincronizando con <strong>${escapar(usuario.email || usuario.displayName || 'tu cuenta')}</strong>. Los cambios aparecen en todos tus dispositivos.</p>
+      <button id="btnSalir" class="secundario">Cerrar sesión</button>`;
+    $('#btnSalir').addEventListener('click', cerrarSesion);
+  } else {
+    el.innerHTML = `<button id="btnEntrar">Iniciar sesión con Google</button>
+      <p class="ayuda">Iniciá sesión con la misma cuenta en el celular y en la PC para ver los mismos datos.</p>`;
+    $('#btnEntrar').addEventListener('click', iniciarSesion);
+  }
+}
+
+if (window.firebase && window.FIREBASE_CONFIG) {
+  firebase.initializeApp(window.FIREBASE_CONFIG);
+  db = firebase.firestore();
+  db.enablePersistence({ synchronizeTabs: true }).catch(() => { /* sin cache offline, igual funciona */ });
+  firebase.auth().getRedirectResult().catch(() => aviso('No se pudo iniciar sesión'));
+  firebase.auth().onAuthStateChanged(alCambiarUsuario);
+}
+renderCuenta();
 
 // ---------- Render general ----------
 function render() {

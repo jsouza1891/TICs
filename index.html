@@ -35,6 +35,9 @@
       <h2>Próximos eventos</h2>
       <ul id="proximos" class="lista"></ul>
 
+      <h2>Sincronización</h2>
+      <div id="cuenta"></div>
+
       <h2>Respaldo</h2>
       <div class="fila-botones">
         <button id="btnExportar" class="secundario">Exportar datos</button>
@@ -91,6 +94,10 @@
   </nav>
 
   <div id="toast" role="status"></div>
+  <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
+  <script src="firebase-config.js"></script>
   <script src="app.js"></script>
 </body>
 </html>
