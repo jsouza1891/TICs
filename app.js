@@ -81,6 +81,7 @@ formAgenda.addEventListener('submit', (e) => {
     fecha: f.fecha.value,
     hora: f.hora.value,
     nota: f.nota.value.trim(),
+    area: f.area.value,
     hecho: false,
   });
   f.titulo.value = ''; f.hora.value = ''; f.nota.value = '';
@@ -88,20 +89,47 @@ formAgenda.addEventListener('submit', (e) => {
 });
 $('#verHechos').addEventListener('change', render);
 
+let filtroArea = 'todas';
+$$('#filtrosAgenda .chip').forEach((c) => c.addEventListener('click', () => {
+  filtroArea = c.dataset.area;
+  $$('#filtrosAgenda .chip').forEach((x) => x.classList.toggle('activo', x === c));
+  renderAgenda();
+}));
+// los eventos cargados antes de existir las dos agendas cuentan como personales
+const areaDe = (ev) => ev.area || 'personal';
+
 const ordenAgenda = (a, b) => (a.fecha + (a.hora || '99')).localeCompare(b.fecha + (b.hora || '99'));
+
+// Vencimiento: la hora indicada, o el final del día si no tiene hora
+const UN_DIA = 24 * 60 * 60 * 1000;
+function vencimiento(ev) {
+  const [h, m] = (ev.hora || '23:59').split(':').map(Number);
+  const d = parseFecha(ev.fecha);
+  d.setHours(h, m, 59);
+  return d;
+}
+function urgencia(ev) {
+  if (ev.hecho) return '';
+  const falta = vencimiento(ev) - Date.now();
+  if (falta < 0) return 'vencido';
+  return falta <= UN_DIA ? 'por-vencer' : '';
+}
 
 function itemAgenda(ev, conFecha) {
   const sec = [conFecha ? fmtCorto(ev.fecha) : '', ev.hora, ev.nota].filter(Boolean).map(escapar).join(' · ');
-  return `<li class="item ${ev.hecho ? 'hecho' : ''}" data-id="${ev.id}">
+  const area = areaDe(ev);
+  return `<li class="item ${ev.hecho ? 'hecho' : ''} ${urgencia(ev)}" data-id="${ev.id}">
     <input type="checkbox" class="toggle" ${ev.hecho ? 'checked' : ''} aria-label="Marcar como hecho">
-    <div class="info"><div class="principal">${escapar(ev.titulo)}</div>${sec ? `<div class="sec">${sec}</div>` : ''}</div>
+    <div class="info"><div class="principal">${escapar(ev.titulo)} <span class="etiqueta ${area}">${area === 'laboral' ? 'Laboral' : 'Personal'}</span></div>${sec ? `<div class="sec">${sec}</div>` : ''}</div>
     <button class="borrar" data-tipo="agenda" aria-label="Eliminar">✕</button>
   </li>`;
 }
 
 function renderAgenda() {
   const verHechos = $('#verHechos').checked;
-  const eventos = datos.agenda.filter((e) => verHechos || !e.hecho).sort(ordenAgenda);
+  const eventos = datos.agenda
+    .filter((e) => (verHechos || !e.hecho) && (filtroArea === 'todas' || areaDe(e) === filtroArea))
+    .sort(ordenAgenda);
   if (!eventos.length) {
     $('#listaAgenda').innerHTML = '<p class="vacio">No hay eventos pendientes 🎉</p>';
     return;
@@ -194,8 +222,10 @@ function renderResumen() {
       </div>`).join('')
     : '<p class="vacio">Sin gastos este mes</p>';
 
-  const hoy = hoyISO();
-  const proximos = datos.agenda.filter((e) => !e.hecho && e.fecha >= hoy).sort(ordenAgenda).slice(0, 5);
+  // todos los vencidos, y después los próximos 5
+  const pendientes = datos.agenda.filter((e) => !e.hecho).sort(ordenAgenda);
+  const vencidos = pendientes.filter((e) => urgencia(e) === 'vencido');
+  const proximos = [...vencidos, ...pendientes.filter((e) => urgencia(e) !== 'vencido').slice(0, 5)];
   $('#proximos').innerHTML = proximos.length
     ? proximos.map((e) => itemAgenda(e, true)).join('')
     : '<li class="vacio">Nada agendado</li>';
@@ -381,6 +411,8 @@ function render() {
   renderMovimientos();
 }
 render();
+// los colores de vencimiento dependen de la hora: se recalculan cada minuto
+setInterval(render, 60 * 1000);
 
 if ('serviceWorker' in navigator && location.protocol !== 'file:') {
   navigator.serviceWorker.register('sw.js').catch(() => {});

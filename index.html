@@ -32,7 +32,7 @@
       <h2>Gastos por categoría</h2>
       <div id="porCategoria" class="barras"></div>
 
-      <h2>Próximos eventos</h2>
+      <h2>Pendientes</h2>
       <ul id="proximos" class="lista"></ul>
 
       <h2>Sincronización</h2>
@@ -51,6 +51,10 @@
     <!-- AGENDA -->
     <section id="vista-agenda" class="vista">
       <form id="formAgenda" class="formulario">
+        <div class="segmentado" role="radiogroup">
+          <label><input type="radio" name="area" value="personal" checked><span>Personal</span></label>
+          <label><input type="radio" name="area" value="laboral"><span>Laboral</span></label>
+        </div>
         <input name="titulo" placeholder="¿Qué tenés que hacer?" required maxlength="120">
         <div class="fila">
           <input name="fecha" type="date" required>
@@ -59,6 +63,11 @@
         <input name="nota" placeholder="Nota (opcional)" maxlength="300">
         <button type="submit">Agregar a la agenda</button>
       </form>
+      <div class="filtros" id="filtrosAgenda">
+        <button data-area="todas" class="chip activo">Todas</button>
+        <button data-area="personal" class="chip">Personal</button>
+        <button data-area="laboral" class="chip">Laboral</button>
+      </div>
       <label class="check"><input type="checkbox" id="verHechos"> Mostrar completados</label>
       <div id="listaAgenda"></div>
     </section>

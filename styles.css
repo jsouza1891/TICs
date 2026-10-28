@@ -7,6 +7,13 @@
   --primary: #2f6fed;
   --ingreso: #1f9d63;
   --gasto: #d9483b;
+  --amarillo: #e0a800;
+  --amarillo-bg: #fff6d6;
+  --rojo-bg: #fde4e1;
+  --personal: #2f6fed;
+  --personal-bg: #e3ebfd;
+  --laboral: #7a3fd1;
+  --laboral-bg: #efe5fc;
   --radius: 14px;
   color-scheme: light;
 }
@@ -20,6 +27,13 @@
     --primary: #5b8cff;
     --ingreso: #3cc488;
     --gasto: #ff6b5e;
+    --amarillo: #e8b923;
+    --amarillo-bg: #3a3214;
+    --rojo-bg: #3d1c1a;
+    --personal: #8fb0ff;
+    --personal-bg: #22304f;
+    --laboral: #c3a1f5;
+    --laboral-bg: #33264a;
     color-scheme: dark;
   }
 }
@@ -89,10 +103,17 @@ input, select {
 .item .monto { font-weight: 700; white-space: nowrap; }
 .item .monto.ingreso { color: var(--ingreso); }
 .item .monto.gasto { color: var(--gasto); }
+.item.por-vencer { background: var(--amarillo-bg); border-color: var(--amarillo); }
+.item.vencido { background: var(--rojo-bg); border-color: var(--gasto); }
+.item.vencido .sec { color: var(--gasto); }
+.etiqueta { font-size: .7rem; font-weight: 600; padding: 2px 7px; border-radius: 999px; vertical-align: middle; white-space: nowrap; }
+.etiqueta.personal { background: var(--personal-bg); color: var(--personal); }
+.etiqueta.laboral { background: var(--laboral-bg); color: var(--laboral); }
 .item.hecho .principal { text-decoration: line-through; color: var(--muted); }
 .item input[type=checkbox] { width: 22px; height: 22px; flex: none; }
 .borrar { background: transparent; color: var(--muted); padding: 6px 8px; font-size: 1.1rem; }
-.dia { font-weight: 700; margin: 18px 0 8px; text-transform: capitalize; }
+.dia { font-weight: 700; margin: 18px 0 8px; }
+.dia::first-letter { text-transform: uppercase; }
 .dia.hoy { color: var(--primary); }
 .vacio { color: var(--muted); text-align: center; padding: 16px; }
 .check { display: flex; align-items: center; gap: 8px; margin: 14px 2px 0; color: var(--muted); }
