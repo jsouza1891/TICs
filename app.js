@@ -116,7 +116,8 @@ function urgencia(ev) {
 }
 
 function itemAgenda(ev, conFecha) {
-  const sec = [conFecha ? fmtCorto(ev.fecha) : '', ev.hora, ev.nota].filter(Boolean).map(escapar).join(' · ');
+  const sec = [conFecha ? fmtCorto(ev.fecha) : '', ev.hora, ev.nota, porOtro(ev.autor) && `por ${ev.autor}`]
+    .filter(Boolean).map(escapar).join(' · ');
   const area = areaDe(ev);
   const acts = ev.actualizaciones || [];
   const ultima = acts.length
@@ -194,7 +195,7 @@ function renderMovimientos() {
     ? lista.map((m) => `<li class="item" data-id="${m.id}">
         <div class="info">
           <div class="principal">${escapar(m.descripcion || m.categoria)}</div>
-          <div class="sec">${escapar(m.categoria)} · ${fmtCorto(m.fecha)}</div>
+          <div class="sec">${escapar(m.categoria)} · ${fmtCorto(m.fecha)}${porOtro(m.autor) ? ` · ${escapar(m.autor)}` : ''}</div>
         </div>
         <div class="monto ${m.tipo}">${m.tipo === 'gasto' ? '−' : '+'}${fmtDinero(m.monto)}</div>
         <button class="borrar" data-tipo="mov" aria-label="Eliminar">✕</button>
@@ -241,7 +242,9 @@ document.addEventListener('change', (e) => {
 });
 
 // hechoEn guarda cuándo se terminó el trabajo, para llevar el control de lo realizado
-const marcarHecho = (ev, hecho) => actualizar('agenda', ev.id, { hecho, hechoEn: hecho ? new Date().toISOString() : null });
+const marcarHecho = (ev, hecho) => actualizar('agenda', ev.id, {
+  hecho, hechoEn: hecho ? new Date().toISOString() : null, hechoPor: hecho ? miNombre() : null,
+});
 
 // ---------- Detalle de tarea y actualizaciones ----------
 const fmtMomento = (iso) => new Date(iso).toLocaleString('es-UY', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit', hour12: false });
@@ -267,7 +270,7 @@ $('#formActualizacion').addEventListener('submit', (e) => {
   const ev = eventoDetalle();
   const texto = e.target.texto.value.trim();
   if (!ev || !texto) return;
-  const nueva = { id: nuevoId(), texto, fecha: new Date().toISOString() };
+  const nueva = { id: nuevoId(), texto, fecha: new Date().toISOString(), autor: miNombre() };
   actualizar('agenda', ev.id, { actualizaciones: [...(ev.actualizaciones || []), nueva] });
   e.target.texto.value = '';
 });
@@ -285,13 +288,15 @@ function renderDetalle() {
   if (!ev) { $('#detalle').close(); return; }
   const area = areaDe(ev);
   $('#detTitulo').innerHTML = `${escapar(ev.titulo)} <span class="etiqueta ${area}">${area === 'laboral' ? 'Laboral' : 'Personal'}</span>`;
-  $('#detInfo').textContent = [fmtDia(ev.fecha), ev.hora, ev.nota].filter(Boolean).join(' · ');
+  const cargo = porOtro(ev.autor);
+  $('#detInfo').textContent = [fmtDia(ev.fecha), ev.hora, ev.nota, cargo && `cargado por ${cargo}`].filter(Boolean).join(' · ');
   $('#detHecho').checked = !!ev.hecho;
-  $('#detHechoEn').textContent = ev.hecho && ev.hechoEn ? `Realizado el ${fmtMomento(ev.hechoEn)}` : '';
+  $('#detHechoEn').textContent = ev.hecho && ev.hechoEn
+    ? `Realizado el ${fmtMomento(ev.hechoEn)}${porOtro(ev.hechoPor) ? ` por ${ev.hechoPor}` : ''}` : '';
   const acts = ev.actualizaciones || [];
   $('#detActualizaciones').innerHTML = acts.length
     ? acts.map((a) => `<li>
-        <div class="act-cab"><span>${fmtMomento(a.fecha)}</span>
+        <div class="act-cab"><span>${fmtMomento(a.fecha)}${porOtro(a.autor) ? ` · ${escapar(a.autor)}` : ''}</span>
           <button class="borrar borrar-act" data-id="${a.id}" aria-label="Eliminar actualización">✕</button></div>
         <div class="act-texto">${escapar(a.texto)}</div>
       </li>`).join('')
@@ -338,7 +343,33 @@ const leerDueno = () => { try { return localStorage.getItem(CLAVE_DUENO); } catc
 function fijarDueno(uid) {
   try { uid ? localStorage.setItem(CLAVE_DUENO, uid) : localStorage.removeItem(CLAVE_DUENO); } catch (e) { /* sin almacenamiento */ }
 }
-const refCol = (col) => db.collection('usuarios').doc(usuario.uid).collection(col);
+// Espacio de datos: por defecto el propio uid. Si existe miembros/{correo} con {espacio}, el usuario
+// trabaja en ese espacio compartido (por ejemplo una empresa con varios socios). Lo arma el admin en la consola.
+let espacio = null;
+let nombreEspacio = '';
+const refCol = (col) => db.collection('usuarios').doc(espacio).collection(col);
+const CLAVE_ESPACIO = CLAVE + '-espacio';
+
+async function resolverEspacio(u) {
+  const email = (u.email || '').toLowerCase();
+  try {
+    const doc = email ? await db.collection('miembros').doc(email).get() : null;
+    const r = doc && doc.exists ? { id: doc.data().espacio, nombre: doc.data().nombre || '' } : { id: u.uid, nombre: '' };
+    try { localStorage.setItem(CLAVE_ESPACIO, JSON.stringify({ uid: u.uid, ...r })); } catch (e) { /* sin almacenamiento */ }
+    return r;
+  } catch (e) {
+    // sin conexión: se usa el último espacio conocido de este usuario
+    try {
+      const g = JSON.parse(localStorage.getItem(CLAVE_ESPACIO));
+      if (g && g.uid === u.uid) return { id: g.id, nombre: g.nombre };
+    } catch (e2) { /* nada guardado */ }
+    return { id: u.uid, nombre: '' };
+  }
+}
+
+// Autoría: con espacios compartidos se muestra quién cargó cada cosa (solo si no fue uno mismo)
+const miNombre = () => (usuario ? usuario.displayName || (usuario.email || '').split('@')[0] : '');
+const porOtro = (autor) => (autor && autor !== miNombre() ? autor : '');
 // Estado visible en la sección Sincronización, para poder diagnosticar problemas
 let errorSyncCodigo = null;
 let conServidor = {};
@@ -349,6 +380,7 @@ function errorSync(e) {
 }
 
 function agregar(col, item) {
+  if (usuario) item.autor = miNombre();
   if (usuario) return void refCol(col).doc(item.id).set(item).catch(errorSync);
   datos[col].push(item);
   guardar(); render();
@@ -388,13 +420,19 @@ function reemplazarTodo(d) {
   guardar(); render();
 }
 
-function alCambiarUsuario(u) {
+let cambioUsuario = 0;
+async function alCambiarUsuario(u) {
+  const turno = ++cambioUsuario;
   desuscribir.forEach((f) => f());
   desuscribir = [];
   usuario = u;
   errorSyncCodigo = null;
   conServidor = {};
   if (u) {
+    const r = await resolverEspacio(u);
+    if (turno !== cambioUsuario) return; // cambió el usuario mientras se buscaba el espacio
+    espacio = r.id;
+    nombreEspacio = r.nombre;
     // Lo cargado antes de iniciar sesión por primera vez en este dispositivo se sube a la cuenta.
     // Si la copia local ya es de esta cuenta no se sube, para no revivir lo borrado desde otro equipo.
     if (!leerDueno()) escribirEnLotes(opsSubir(datos));
@@ -482,7 +520,9 @@ function renderCuenta() {
       ? `⚠️ Error de sincronización: <strong>${escapar(errorSyncCodigo)}</strong>`
       : COLECCIONES.every((col) => conServidor[col]) ? '✅ Conectado con el servidor' : '⏳ Conectando con el servidor…';
     const conClave = usuario.providerData.some((p) => p.providerId === 'password');
-    el.innerHTML = `<p class="ayuda">Sesión iniciada con <strong>${escapar(usuario.email || usuario.displayName || 'tu cuenta')}</strong>.<br>${estado}</p>
+    const compartido = espacio && espacio !== usuario.uid
+      ? `<br>👥 Espacio compartido${nombreEspacio ? `: <strong>${escapar(nombreEspacio)}</strong>` : ''}` : '';
+    el.innerHTML = `<p class="ayuda">Sesión iniciada con <strong>${escapar(usuario.email || usuario.displayName || 'tu cuenta')}</strong>.${compartido}<br>${estado}</p>
       <div class="fila-botones">
         ${conClave ? '<button id="btnClave" class="secundario">Cambiar contraseña</button>' : ''}
         <button id="btnSalir" class="secundario">Cerrar sesión</button>

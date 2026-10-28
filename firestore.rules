@@ -1,10 +1,23 @@
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
-    // Cada usuario solo puede leer y escribir sus propios datos.
-    // Las reglas publicadas además exigen el correo del dueño (ver CLAUDE.md); no se guarda acá porque el repo es público.
-    match /usuarios/{uid}/{documento=**} {
-      allow read, write: if request.auth != null && request.auth.uid == uid;
+    function correo() { return request.auth.token.email.lower(); }
+    function rutaMiembro() { return /databases/$(database)/documents/miembros/$(correo()); }
+
+    // Cada espacio de datos es usuarios/{espacio}. Se entra si:
+    //  - es el espacio propio (espacio == uid) y el correo está en la lista, o
+    //  - hay una ficha miembros/{correo} que asigna ese espacio (espacio compartido, por ejemplo una empresa).
+    // Las reglas publicadas tienen la lista real de correos; acá no se guarda porque el repo es público.
+    match /usuarios/{espacio}/{documento=**} {
+      allow read, write: if request.auth != null && (
+        (request.auth.uid == espacio && correo() in ['CORREO_DEL_ADMIN'])
+        || (exists(rutaMiembro()) && get(rutaMiembro()).data.espacio == espacio)
+      );
+    }
+
+    // Fichas de miembro: las crea el admin en la consola; cada uno solo puede leer la suya
+    match /miembros/{email} {
+      allow read: if request.auth != null && correo() == email;
     }
   }
 }
