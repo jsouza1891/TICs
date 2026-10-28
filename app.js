@@ -256,7 +256,14 @@ function fijarDueno(uid) {
   try { uid ? localStorage.setItem(CLAVE_DUENO, uid) : localStorage.removeItem(CLAVE_DUENO); } catch (e) { /* sin almacenamiento */ }
 }
 const refCol = (col) => db.collection('usuarios').doc(usuario.uid).collection(col);
-const errorSync = () => aviso('No se pudo sincronizar');
+// Estado visible en la sección Sincronización, para poder diagnosticar problemas
+let errorSyncCodigo = null;
+let conServidor = {};
+function errorSync(e) {
+  errorSyncCodigo = (e && e.code) || 'desconocido';
+  aviso('No se pudo sincronizar');
+  renderCuenta();
+}
 
 function agregar(col, item) {
   if (usuario) return void refCol(col).doc(item.id).set(item).catch(errorSync);
@@ -302,14 +309,18 @@ function alCambiarUsuario(u) {
   desuscribir.forEach((f) => f());
   desuscribir = [];
   usuario = u;
+  errorSyncCodigo = null;
+  conServidor = {};
   if (u) {
     // Lo cargado antes de iniciar sesión por primera vez en este dispositivo se sube a la cuenta.
     // Si la copia local ya es de esta cuenta no se sube, para no revivir lo borrado desde otro equipo.
     if (!leerDueno()) escribirEnLotes(opsSubir(datos));
     fijarDueno(u.uid);
-    desuscribir = COLECCIONES.map((col) => refCol(col).onSnapshot((snap) => {
+    desuscribir = COLECCIONES.map((col) => refCol(col).onSnapshot({ includeMetadataChanges: true }, (snap) => {
       datos[col] = snap.docs.map((doc) => doc.data());
-      guardar(); render();
+      // fromCache: todavía no hubo respuesta del servidor (sin conexión o base de datos inaccesible)
+      conServidor[col] = !snap.metadata.fromCache;
+      guardar(); render(); renderCuenta();
     }, errorSync));
   }
   renderCuenta();
@@ -339,7 +350,10 @@ function renderCuenta() {
   if (!db) {
     el.innerHTML = '<p class="ayuda">La sincronización no está disponible (sin conexión o sin configurar). Los datos se guardan solo en este dispositivo.</p>';
   } else if (usuario) {
-    el.innerHTML = `<p class="ayuda">Sincronizando con <strong>${escapar(usuario.email || usuario.displayName || 'tu cuenta')}</strong>. Los cambios aparecen en todos tus dispositivos.</p>
+    const estado = errorSyncCodigo
+      ? `⚠️ Error de sincronización: <strong>${escapar(errorSyncCodigo)}</strong>`
+      : COLECCIONES.every((col) => conServidor[col]) ? '✅ Conectado con el servidor' : '⏳ Conectando con el servidor…';
+    el.innerHTML = `<p class="ayuda">Sesión iniciada con <strong>${escapar(usuario.email || usuario.displayName || 'tu cuenta')}</strong>.<br>${estado}</p>
       <button id="btnSalir" class="secundario">Cerrar sesión</button>`;
     $('#btnSalir').addEventListener('click', cerrarSesion);
   } else {
