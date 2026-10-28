@@ -18,7 +18,7 @@
     <div class="login-panel">
       <h1>Iniciar sesión</h1>
       <form id="formLogin" class="formulario">
-        <input name="email" type="email" autocomplete="username" placeholder="Correo electrónico" required>
+        <input name="email" type="text" autocomplete="username" autocapitalize="none" spellcheck="false" placeholder="Usuario o correo" required>
         <input name="clave" type="password" autocomplete="current-password" placeholder="Contraseña" required>
         <button type="submit">Ingresar</button>
       </form>
@@ -134,6 +134,21 @@
     <form id="formActualizacion" class="formulario">
       <textarea name="texto" rows="3" maxlength="1000" placeholder="Agregar comentario o avance…" required></textarea>
       <button type="submit">Agregar actualización</button>
+    </form>
+  </dialog>
+
+  <!-- Cambio de contraseña para usuarios con contraseña -->
+  <dialog id="dlgClave" class="detalle">
+    <div class="detalle-cab">
+      <div class="detalle-titulo">Cambiar contraseña</div>
+      <button class="icon" type="button" id="dlgClaveCerrar" aria-label="Cerrar">✕</button>
+    </div>
+    <form id="formClave" class="formulario">
+      <input name="actual" type="password" autocomplete="current-password" placeholder="Contraseña actual" required>
+      <input name="nueva" type="password" autocomplete="new-password" placeholder="Contraseña nueva (mínimo 6 caracteres)" minlength="6" required>
+      <input name="repetir" type="password" autocomplete="new-password" placeholder="Repetir contraseña nueva" minlength="6" required>
+      <button type="submit">Guardar contraseña</button>
+      <p id="claveError" class="login-error" role="alert"></p>
     </form>
   </dialog>
 

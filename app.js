@@ -369,6 +369,15 @@ async function resolverEspacio(u) {
 
 // Autoría: con espacios compartidos se muestra quién cargó cada cosa (solo si no fue uno mismo)
 const miNombre = () => (usuario ? usuario.displayName || (usuario.email || '').split('@')[0] : '');
+// Usuarios sin correo: Firebase exige un correo, así que "juan" se guarda como juan@usuarios.tics.com.uy.
+// Ese dominio no recibe mails: no sirve "olvidé mi contraseña" (la cambia el admin o el usuario desde Cuenta).
+const DOMINIO_USUARIOS = 'usuarios.tics.com.uy';
+const aCorreo = (usuarioOCorreo) => {
+  const v = usuarioOCorreo.trim().toLowerCase();
+  return v.includes('@') ? v : `${v}@${DOMINIO_USUARIOS}`;
+};
+const esUsuarioSinCorreo = (email) => (email || '').toLowerCase().endsWith('@' + DOMINIO_USUARIOS);
+const nombreVisible = (u) => (esUsuarioSinCorreo(u.email) ? u.email.split('@')[0] : u.email || u.displayName || 'tu cuenta');
 const porOtro = (autor) => (autor && autor !== miNombre() ? autor : '');
 // Estado visible en la sección Sincronización, para poder diagnosticar problemas
 let errorSyncCodigo = null;
@@ -451,9 +460,9 @@ async function alCambiarUsuario(u) {
 // ---------- Inicio de sesión ----------
 // Los usuarios con contraseña los crea el administrador en la consola de Firebase (no hay registro desde la app).
 const ERRORES_LOGIN = {
-  'auth/invalid-credential': 'Correo o contraseña incorrectos.',
-  'auth/wrong-password': 'Correo o contraseña incorrectos.',
-  'auth/user-not-found': 'Correo o contraseña incorrectos.',
+  'auth/invalid-credential': 'Usuario o contraseña incorrectos.',
+  'auth/wrong-password': 'Usuario o contraseña incorrectos.',
+  'auth/user-not-found': 'Usuario o contraseña incorrectos.',
   'auth/invalid-email': 'El correo no es válido.',
   'auth/user-disabled': 'Este usuario está deshabilitado.',
   'auth/too-many-requests': 'Demasiados intentos. Esperá unos minutos y probá de nuevo.',
@@ -473,15 +482,19 @@ $('#formLogin').addEventListener('submit', (e) => {
   if (!db) return;
   $('#loginError').textContent = '';
   const f = e.target;
-  firebase.auth().signInWithEmailAndPassword(f.email.value.trim(), f.clave.value)
+  firebase.auth().signInWithEmailAndPassword(aCorreo(f.email.value), f.clave.value)
     .then(() => { f.clave.value = ''; })
     .catch(errorLogin);
 });
 
 $('#btnOlvide').addEventListener('click', () => {
-  const email = $('#formLogin').email.value.trim();
-  if (!email) { $('#loginError').textContent = 'Escribí tu correo arriba y tocá de nuevo "¿Olvidaste tu contraseña?".'; return; }
-  enviarCambioClave(email);
+  const valor = $('#formLogin').email.value.trim();
+  if (!valor) { $('#loginError').textContent = 'Escribí tu usuario o correo arriba y tocá de nuevo "¿Olvidaste tu contraseña?".'; return; }
+  if (esUsuarioSinCorreo(aCorreo(valor))) {
+    $('#loginError').textContent = 'Tu usuario no tiene correo: pedile al administrador que te dé una contraseña nueva.';
+    return;
+  }
+  enviarCambioClave(aCorreo(valor));
 });
 // El mensaje es el mismo exista o no el usuario, para no revelar qué correos tienen cuenta
 function enviarCambioClave(email) {
@@ -489,6 +502,27 @@ function enviarCambioClave(email) {
     .catch(() => {})
     .then(() => aviso('Si el correo tiene cuenta, te llega un mail para elegir contraseña'));
 }
+
+// Cambio de contraseña desde la app: Firebase pide volver a confirmar la contraseña actual
+$('#dlgClaveCerrar').addEventListener('click', () => $('#dlgClave').close());
+$('#formClave').addEventListener('submit', (e) => {
+  e.preventDefault();
+  const f = e.target;
+  const error = (t) => { $('#claveError').textContent = t; };
+  if (f.nueva.value !== f.repetir.value) return error('Las contraseñas nuevas no coinciden.');
+  error('');
+  const credencial = firebase.auth.EmailAuthProvider.credential(usuario.email, f.actual.value);
+  usuario.reauthenticateWithCredential(credencial)
+    .then(() => usuario.updatePassword(f.nueva.value))
+    .then(() => { f.reset(); $('#dlgClave').close(); aviso('Contraseña cambiada'); })
+    .catch((err) => error({
+      'auth/invalid-credential': 'La contraseña actual no es correcta.',
+      'auth/wrong-password': 'La contraseña actual no es correcta.',
+      'auth/weak-password': 'La contraseña nueva es muy corta (mínimo 6 caracteres).',
+      'auth/too-many-requests': 'Demasiados intentos. Esperá unos minutos.',
+      'auth/network-request-failed': 'Sin conexión. Probá de nuevo con internet.',
+    }[err.code] || `No se pudo cambiar (${err.code}).`));
+});
 
 function iniciarConGoogle() {
   if (!db) return;
@@ -522,13 +556,13 @@ function renderCuenta() {
     const conClave = usuario.providerData.some((p) => p.providerId === 'password');
     const compartido = espacio && espacio !== usuario.uid
       ? `<br>👥 Espacio compartido${nombreEspacio ? `: <strong>${escapar(nombreEspacio)}</strong>` : ''}` : '';
-    el.innerHTML = `<p class="ayuda">Sesión iniciada con <strong>${escapar(usuario.email || usuario.displayName || 'tu cuenta')}</strong>.${compartido}<br>${estado}</p>
+    el.innerHTML = `<p class="ayuda">Sesión iniciada con <strong>${escapar(nombreVisible(usuario))}</strong>.${compartido}<br>${estado}</p>
       <div class="fila-botones">
         ${conClave ? '<button id="btnClave" class="secundario">Cambiar contraseña</button>' : ''}
         <button id="btnSalir" class="secundario">Cerrar sesión</button>
       </div>`;
     $('#btnSalir').addEventListener('click', cerrarSesion);
-    if (conClave) $('#btnClave').addEventListener('click', () => enviarCambioClave(usuario.email));
+    if (conClave) $('#btnClave').addEventListener('click', () => { $('#claveError').textContent = ''; $('#dlgClave').showModal(); });
   } else {
     el.innerHTML = '';
   }
