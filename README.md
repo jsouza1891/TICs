@@ -8,7 +8,9 @@ App web (PWA) para llevar en un solo lugar:
 - **Respaldo**: exportar e importar todos los datos en un archivo JSON.
 
 No necesita servidor ni instalación de dependencias: es HTML, CSS y JavaScript puro.
-Los datos se guardan en el navegador del dispositivo (`localStorage`).
+Los datos se guardan en el navegador del dispositivo (`localStorage`). Opcionalmente, iniciando sesión con Google
+se sincronizan entre dispositivos con Firebase (Firestore); la configuración está en `firebase-config.js`
+y las reglas de seguridad en `firestore.rules`.
 
 ## Cómo usarla
 
