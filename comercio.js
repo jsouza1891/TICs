@@ -607,8 +607,184 @@ document.addEventListener('click', (e) => {
   }
 });
 
+// ---------- Numeración de órdenes ----------
+// Las órdenes creadas antes de existir el número se numeran una sola vez, por fecha de creación.
+// El orden es determinista: si dos dispositivos lo hacen a la vez escriben los mismos números.
+function numerarOrdenesViejas() {
+  const sin = datos.agenda.filter((o) => !o.numero);
+  if (!sin.length) return;
+  let n = siguienteNumeroOrden();
+  const clave = (o) => (o.creada || `${o.fecha}T00:00`) + o.id;
+  transaccion([...sin].sort((a, b) => clave(a).localeCompare(clave(b)))
+    .map((o) => ({ tipo: 'update', col: 'agenda', id: o.id, data: { numero: n++ } })));
+}
+
+// ---------- Datos de la empresa (pie de los comprobantes) ----------
+// Sin datos cargados: en el espacio propio (TICs de Joaquín) van los de TICs; en uno compartido, su nombre.
+const EMPRESA_TICS = { nombre: 'TICs', rut: '160328490016' };
+function empresa() {
+  const e = configGeneral().empresa;
+  if (e && (e.nombre || e.rut)) return e;
+  return usuario && espacio && espacio !== usuario.uid ? { nombre: nombreEspacio } : EMPRESA_TICS;
+}
+function renderEmpresa() {
+  const f = $('#formEmpresa');
+  if (f.contains(document.activeElement)) return; // no pisar lo que se está escribiendo
+  const e = empresa();
+  ['nombre', 'rut', 'telefono', 'direccion'].forEach((k) => { f[k].value = e[k] || ''; });
+}
+$('#formEmpresa').addEventListener('submit', (e) => {
+  e.preventDefault();
+  const f = e.target;
+  const datosEmpresa = {};
+  ['nombre', 'rut', 'telefono', 'direccion'].forEach((k) => { datosEmpresa[k] = f[k].value.trim(); });
+  if (datos.config.some((c) => c.id === 'general')) actualizar('config', 'general', { empresa: datosEmpresa });
+  else agregar('config', { id: 'general', empresa: datosEmpresa });
+  document.activeElement.blur();
+  aviso('Datos guardados');
+});
+
+// ---------- Comprobante de orden en PDF ----------
+// jsPDF se carga recién cuando hace falta (y el service worker lo guarda para usarlo sin conexión).
+// En el celular el PDF se comparte (WhatsApp, correo…); en la PC se descarga.
+const URL_JSPDF = 'https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js';
+let promesaPdf = null;
+function prepararPdf() {
+  if (!promesaPdf) {
+    const libreria = window.jspdf ? null : new Promise((ok, mal) => {
+      const script = document.createElement('script');
+      script.src = URL_JSPDF;
+      script.onload = ok;
+      script.onerror = mal;
+      document.head.appendChild(script);
+    });
+    const logo = fetch('img/logo-encabezado.png').then((r) => r.blob()).then((b) => new Promise((ok) => {
+      const lector = new FileReader();
+      lector.onload = () => ok(lector.result);
+      lector.readAsDataURL(b);
+    }));
+    promesaPdf = Promise.all([libreria, logo]).then(([, l]) => l).catch((e) => { promesaPdf = null; throw e; });
+  }
+  return promesaPdf;
+}
+const fmtFechaLarga = (iso, mayuscula = true) => {
+  const t = parseFecha(iso).toLocaleDateString('es-UY', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' });
+  return mayuscula ? t.charAt(0).toUpperCase() + t.slice(1) : t;
+};
+
+async function generarComprobante(ev) {
+  let logo;
+  try { logo = await prepararPdf(); } catch (e) { aviso('No se pudo preparar el PDF. Revisá la conexión.'); return; }
+  const { jsPDF } = window.jspdf;
+  const doc = new jsPDF({ unit: 'mm', format: 'a4' });
+  const mon = monedaDe(ev);
+  const cliente = clientePorId(ev.clienteId);
+  const emp = empresa();
+  const X = 18;
+  const DER = 192;
+  let y = 16;
+  const gris = () => doc.setTextColor(110);
+  const negro = () => doc.setTextColor(30);
+  const rotulo = (texto) => { doc.setFont('helvetica', 'bold'); doc.setFontSize(8); gris(); doc.text(texto, X, y); y += 5; negro(); };
+  const parrafo = (texto, tam = 10, estilo = 'normal') => {
+    doc.setFont('helvetica', estilo); doc.setFontSize(tam);
+    const lineas = doc.splitTextToSize(texto, DER - X);
+    doc.text(lineas, X, y);
+    y += lineas.length * tam * 0.42 + 1.5;
+  };
+
+  // Encabezado
+  doc.addImage(logo, 'PNG', X, y, 39, 16);
+  doc.setFont('helvetica', 'bold'); doc.setFontSize(16); negro();
+  doc.text('ORDEN DE TRABAJO', DER, y + 6, { align: 'right' });
+  doc.setFontSize(12);
+  doc.text(`N.º ${ev.numero ? fmtNumero(ev.numero) : '-'}`, DER, y + 12.5, { align: 'right' });
+  doc.setFont('helvetica', 'normal'); doc.setFontSize(9); gris();
+  doc.text(`Emitida el ${fmtFechaLarga(hoyISO(), false)}`, DER, y + 18, { align: 'right' });
+  y += 24;
+  doc.setDrawColor(220); doc.line(X, y, DER, y);
+  y += 8;
+
+  if (cliente) {
+    rotulo('CLIENTE');
+    parrafo(cliente.nombre, 11, 'bold');
+    [cliente.rut && `RUT: ${cliente.rut}`, cliente.telefono && `Tel.: ${cliente.telefono}`, cliente.direccion].filter(Boolean)
+      .forEach((t) => parrafo(t, 10));
+    y += 3;
+  }
+  rotulo('TRABAJO A REALIZAR');
+  parrafo(ev.titulo, 11, 'bold');
+  if (ev.nota) parrafo(ev.nota, 10);
+  y += 3;
+  rotulo('FECHA DE ENTREGA');
+  parrafo(fmtFechaLarga(ev.fecha) + (ev.hora ? ` - ${ev.hora} h` : ''), 10);
+  y += 4;
+
+  // Detalle de costos: servicio + productos
+  const filas = [];
+  if (numero(ev.precio) > 0) filas.push({ nombre: 'Servicio / mano de obra', cantidad: 1, precio: numero(ev.precio) });
+  (ev.lineas || []).forEach((l) => filas.push(l));
+  if (filas.length) {
+    const COL = { cant: 128, unit: 158 };
+    doc.setFillColor(240, 241, 245); doc.rect(X, y - 4.5, DER - X, 7, 'F');
+    doc.setFont('helvetica', 'bold'); doc.setFontSize(9); negro();
+    doc.text('Descripción', X + 2, y); doc.text('Cant.', COL.cant, y, { align: 'right' });
+    doc.text('Precio unit.', COL.unit, y, { align: 'right' }); doc.text('Importe', DER - 2, y, { align: 'right' });
+    y += 7;
+    doc.setFont('helvetica', 'normal'); doc.setFontSize(10);
+    filas.forEach((f) => {
+      const desc = doc.splitTextToSize(f.nombre, COL.cant - X - 20);
+      if (y + desc.length * 4.5 > 265) { doc.addPage(); y = 20; }
+      doc.text(desc, X + 2, y);
+      doc.text(fmtCantidad(f.cantidad), COL.cant, y, { align: 'right' });
+      doc.text(fmtDinero(numero(f.precio), mon), COL.unit, y, { align: 'right' });
+      doc.text(fmtDinero(redondear(numero(f.cantidad) * numero(f.precio)), mon), DER - 2, y, { align: 'right' });
+      y += desc.length * 4.5 + 2;
+      doc.setDrawColor(235); doc.line(X, y - 3, DER, y - 3);
+    });
+    y += 3;
+    doc.setFont('helvetica', 'bold'); doc.setFontSize(12);
+    doc.text(`TOTAL  ${fmtDinero(totalOrden(ev), mon)}`, DER - 2, y, { align: 'right' });
+  }
+
+  // Pie con los datos de la empresa, en todas las páginas
+  const pie = [emp.nombre, emp.rut && `RUT ${emp.rut}`, emp.telefono && `Tel. ${emp.telefono}`, emp.direccion].filter(Boolean).join('  ·  ');
+  for (let i = 1; i <= doc.getNumberOfPages(); i++) {
+    doc.setPage(i);
+    doc.setDrawColor(220); doc.line(X, 282, DER, 282);
+    doc.setFont('helvetica', 'normal'); doc.setFontSize(8); gris();
+    doc.text(pie, (X + DER) / 2, 287, { align: 'center' });
+  }
+
+  const archivo = `Orden-${fmtNumero(ev.numero || 0)}${cliente ? `-${cliente.nombre.normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^\w]+/g, '-')}` : ''}.pdf`;
+  const blob = doc.output('blob');
+  const file = new File([blob], archivo, { type: 'application/pdf' });
+  const esCelular = matchMedia('(pointer: coarse)').matches;
+  if (esCelular && navigator.canShare && navigator.canShare({ files: [file] })) {
+    try {
+      await navigator.share({ files: [file], title: `Orden de trabajo N.º ${fmtNumero(ev.numero || 0)}` });
+      return;
+    } catch (e) {
+      if (e.name === 'AbortError') return; // el usuario cerró el menú de compartir
+    }
+  }
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = archivo;
+  a.click();
+  setTimeout(() => URL.revokeObjectURL(a.href), 10000);
+  aviso('Comprobante descargado');
+}
+$('#detComprobante').addEventListener('click', () => {
+  const ev = eventoDetalle();
+  if (ev) generarComprobante(ev);
+});
+// al abrir una orden se precarga el generador, así compartir es inmediato
+document.addEventListener('click', (e) => { if (e.target.closest('.abrir-detalle')) prepararPdf().catch(() => {}); });
+
 // ---------- Render ----------
 function renderComercio() {
+  renderEmpresa();
   renderCotizacion();
   renderProductos();
   renderProveedores();

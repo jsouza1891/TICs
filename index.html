@@ -144,6 +144,16 @@
       <h2>Sincronización</h2>
       <div id="cuenta"></div>
 
+      <h2>Datos para comprobantes</h2>
+      <form id="formEmpresa" class="formulario">
+        <input name="nombre" placeholder="Nombre de la empresa" maxlength="120">
+        <input name="rut" placeholder="RUT" maxlength="40">
+        <input name="telefono" placeholder="Teléfono (opcional)" maxlength="40">
+        <input name="direccion" placeholder="Dirección (opcional)" maxlength="200">
+        <button type="submit">Guardar datos</button>
+      </form>
+      <p class="ayuda">Aparecen al pie de los comprobantes en PDF.</p>
+
       <h2>Respaldo</h2>
       <div class="fila-botones">
         <button id="btnExportar" class="secundario">Exportar datos</button>
@@ -202,6 +212,7 @@
     <label class="check"><input type="checkbox" id="detHecho"> Trabajo realizado</label>
     <div class="sec" id="detHechoEn"></div>
     <div class="fila-botones acciones-detalle">
+      <button id="detComprobante">📄 Comprobante PDF</button>
       <button id="detEditar" class="secundario">✏️ Editar</button>
       <button id="detCobro" class="secundario">💵 Registrar cobro</button>
       <button id="detEliminar" class="secundario peligro">Eliminar</button>

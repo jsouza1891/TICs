@@ -112,6 +112,10 @@ function urgencia(ev) {
   return falta <= UN_DIA ? 'por-vencer' : '';
 }
 
+// Número correlativo de orden, para control y para el comprobante: 12 → "0012"
+const fmtNumero = (n) => String(n).padStart(4, '0');
+const siguienteNumeroOrden = () => datos.agenda.reduce((m, o) => Math.max(m, Number(o.numero) || 0), 0) + 1;
+
 function itemAgenda(ev, conFecha) {
   const cliente = clientePorId(ev.clienteId);
   const sec = [cliente && `👤 ${cliente.nombre}`, conFecha ? fmtCorto(ev.fecha) : '', ev.hora, porOtro(ev.autor) && `por ${ev.autor}`]
@@ -121,7 +125,7 @@ function itemAgenda(ev, conFecha) {
     ? `<div class="sec ultima">💬 ${acts.length} · ${escapar(acts[acts.length - 1].texto)}</div>` : '';
   return `<li class="item ${ev.hecho ? 'hecho' : ''} ${urgencia(ev)}" data-id="${ev.id}">
     <input type="checkbox" class="toggle" ${ev.hecho ? 'checked' : ''} aria-label="Marcar como realizada">
-    <div class="info abrir-detalle"><div class="principal">${escapar(ev.titulo)}</div>${sec ? `<div class="sec">${sec}</div>` : ''}${ultima}</div>
+    <div class="info abrir-detalle"><div class="principal">${ev.numero ? `<span class="num-orden">${fmtNumero(ev.numero)}</span> ` : ''}${escapar(ev.titulo)}</div>${sec ? `<div class="sec">${sec}</div>` : ''}${ultima}</div>
   </li>`;
 }
 
@@ -129,7 +133,7 @@ function renderAgenda() {
   const verHechos = $('#verHechos').checked;
   const busqueda = normalizar($('#buscarOrden').value.trim());
   const coincide = (e) => !busqueda
-    || normalizar([e.titulo, e.nota, (clientePorId(e.clienteId) || {}).nombre].join(' ')).includes(busqueda);
+    || normalizar([e.numero && fmtNumero(e.numero), e.titulo, e.nota, (clientePorId(e.clienteId) || {}).nombre].join(' ')).includes(busqueda);
   const eventos = datos.agenda
     .filter((e) => (verHechos || !e.hecho) && coincide(e))
     .sort(ordenAgenda);
@@ -207,7 +211,7 @@ $('#formOrden').addEventListener('submit', (e) => {
     actualizar('agenda', ordenEditando, campos);
     aviso('Orden actualizada');
   } else {
-    agregar('agenda', { id: nuevoId(), ...campos, hecho: false, creada: new Date().toISOString() });
+    agregar('agenda', { id: nuevoId(), numero: siguienteNumeroOrden(), ...campos, hecho: false, creada: new Date().toISOString() });
     aviso('Orden creada');
   }
   $('#dlgOrden').close();
@@ -477,7 +481,7 @@ function renderDetalle() {
   if (!detalleId) return;
   const ev = eventoDetalle();
   if (!ev) { $('#detalle').close(); return; }
-  $('#detTitulo').textContent = ev.titulo;
+  $('#detTitulo').textContent = `${ev.numero ? `N.º ${fmtNumero(ev.numero)} · ` : ''}${ev.titulo}`;
   const cliente = clientePorId(ev.clienteId);
   $('#detDatos').innerHTML = filasDatos([
     ['Cliente', cliente && cliente.nombre],
@@ -655,6 +659,8 @@ async function alCambiarUsuario(u) {
       datos[col] = snap.docs.map((doc) => doc.data());
       // fromCache: todavía no hubo respuesta del servidor (sin conexión o base de datos inaccesible)
       conServidor[col] = !snap.metadata.fromCache;
+      // con la lista completa del servidor, numera las órdenes viejas que no tienen número
+      if (col === 'agenda' && conServidor.agenda) numerarOrdenesViejas();
       guardar(); render(); renderCuenta();
     }, errorSync));
   }

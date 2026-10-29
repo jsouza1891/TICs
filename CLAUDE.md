@@ -46,14 +46,14 @@ Pedido del usuario: dos cajas, proveedores, productos con stock, ventas y produc
 - **Estados de cuenta** por moneda: cliente = ventas + órdenes realizadas con total (servicio + productos) − cobros; proveedor = compras − pagos. Los cobros desde la ficha del cliente son "a cuenta" (no se asignan a una venta u orden puntual, así que esa venta sigue figurando con "Falta cobrar").
 - Borrar una venta o compra devuelve el stock y borra sus cobros/pagos (y sus movimientos). No se editan: se borran y se cargan de nuevo.
 
-## Próximo pedido (anotado el 29/10/2026): comprobante de orden para el cliente
-El usuario quiere **enviarle al cliente un comprobante de la orden** con el detalle del trabajo, los costos (servicio + productos, total) y la fecha de entrega. Todavía no se programó. Propuesta a confirmar:
-- Botón "📄 Comprobante" en el detalle de la orden que arma una página imprimible con logo de TICs (o el nombre del espacio), datos del cliente, número de orden, detalle, tabla de productos, servicio, total, lo cobrado y lo que falta, y fecha de entrega.
-- Enviar: compartir con el menú del celular (`navigator.share`) o por WhatsApp al número del cliente; "Guardar como PDF" desde la ventana de impresión del navegador (sin librerías).
-- Preguntas: ¿PDF adjunto o texto por WhatsApp (o los dos)?; ¿número de orden correlativo (hoy no hay)?; ¿datos de la empresa al pie (RUT, teléfono, dirección)? y en TICs Maldonado ¿su propio logo/datos?; ¿mostrar lo ya cobrado o solo el total?; ¿texto de condiciones (validez, garantía)?
+## Comprobante de orden (PDF) y numeración
+- Cada orden tiene `numero` correlativo (por espacio): al crearla, máximo + 1; se muestra como "0012" en la lista (y se puede buscar) y "N.º 0012" en el detalle. Las órdenes anteriores se numeraron solas por fecha de creación (`numerarOrdenesViejas`, determinista, corre cuando llega la lista del servidor). Si dos personas crean una orden a la vez sin conexión podría repetirse un número (riesgo aceptado).
+- Botón "📄 Comprobante PDF" en el detalle: PDF A4 hecho con **jsPDF 2.5.1** (cdnjs, se carga al abrir una orden y el service worker lo cachea). Tiene logo, "ORDEN DE TRABAJO N.º", fecha de emisión, cliente (nombre, RUT, teléfono, dirección), trabajo y detalles, fecha de entrega, tabla servicio + productos y TOTAL. **No muestra lo cobrado** (el usuario lo prefirió así por ahora). En el celular se comparte (`navigator.share` con el archivo: WhatsApp, etc.); en la PC se descarga.
+- Pie con los datos de la empresa, editables en Cuenta → "Datos para comprobantes" (`config/general.empresa`: nombre, rut, telefono, direccion). Sin datos cargados, el espacio propio usa **TICs, RUT 160328490016** y un espacio compartido usa su nombre. TICs Maldonado va a pasar sus datos (los pueden cargar ellos mismos en Cuenta).
+- Pendiente de decidir más adelante: logo propio para TICs Maldonado, textos de condiciones/garantía, mostrar lo cobrado.
 
 ## Ideas para más adelante (comercio)
-Número de orden/venta correlativo, presupuestos, mandar el estado de cuenta por WhatsApp o PDF, editar ventas y compras, asignar un cobro a cuenta a una venta puntual, historial de cotizaciones.
+Número correlativo de ventas, presupuestos, mandar el estado de cuenta por WhatsApp o PDF, editar ventas y compras, asignar un cobro a cuenta a una venta puntual, historial de cotizaciones.
 
 ## Ideas pendientes ofrecidas (no pedidas todavía)
 Aviso de versión nueva, editar movimientos, categorías personalizables, gastos fijos mensuales, presupuesto por categoría, recordatorios con notificación, gráfico de evolución mensual.
