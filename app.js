@@ -31,8 +31,11 @@ const $$ = (s) => document.querySelectorAll(s);
 const pad = (n) => String(n).padStart(2, '0');
 const hoyISO = () => { const d = new Date(); return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`; };
 const parseFecha = (iso) => { const [a, m, d] = iso.split('-').map(Number); return new Date(a, m - 1, d); };
+// Dos monedas: pesos uruguayos y dólares. Lo cargado antes de existir la moneda cuenta como pesos.
+const MONEDAS = { UYU: '$', USD: 'US$' };
+const monedaDe = (x) => x.moneda || 'UYU';
 // es-UY agrupa miles también en números de 4 cifras (1.500 y no 1500)
-const fmtDinero = (n, dec = 2) => '$' + n.toLocaleString('es-UY', { minimumFractionDigits: dec, maximumFractionDigits: dec });
+const fmtDinero = (n, moneda = 'UYU', dec = 2) => `${MONEDAS[moneda] || '$'} ${n.toLocaleString('es-UY', { minimumFractionDigits: dec, maximumFractionDigits: dec })}`;
 const fmtDia = (iso) => parseFecha(iso).toLocaleDateString('es', { weekday: 'long', day: 'numeric', month: 'long' });
 const fmtCorto = (iso) => parseFecha(iso).toLocaleDateString('es', { day: 'numeric', month: 'short' });
 const escapar = (t) => String(t).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
@@ -82,8 +85,6 @@ $('#mesNext').addEventListener('click', () => cambiarMes(1));
 // Se guardan en la colección "agenda" (antes era una agenda de tareas): titulo, fecha/hora de entrega,
 // nota (detalles), clienteId, precio/moneda, hecho/hechoEn y actualizaciones (novedades).
 // El precio solo se muestra en el detalle, nunca en las listas: la lista se puede mostrar a otros.
-const MONEDAS = { UYU: '$', USD: 'US$' };
-const fmtPrecio = (n, moneda) => `${MONEDAS[moneda] || '$'} ${n.toLocaleString('es-UY', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 const clientePorId = (id) => (id ? datos.clientes.find((c) => c.id === id) : null);
 const ordenPorId = (id) => datos.agenda.find((x) => x.id === id);
 const normalizar = (t) => (t || '').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '');
@@ -308,6 +309,7 @@ formMov.addEventListener('submit', (e) => {
     id: nuevoId(),
     tipo: f.tipo.value,
     monto,
+    moneda: f.moneda.value,
     categoria: f.categoria.value,
     fecha: f.fecha.value,
     descripcion: f.descripcion.value.trim(),
@@ -321,10 +323,17 @@ $$('#filtrosMov .chip').forEach((c) => c.addEventListener('click', () => {
   $$('#filtrosMov .chip').forEach((x) => x.classList.toggle('activo', x === c));
   renderMovimientos();
 }));
+let filtroMoneda = 'todas';
+$$('#filtrosMoneda .chip').forEach((c) => c.addEventListener('click', () => {
+  filtroMoneda = c.dataset.moneda;
+  $$('#filtrosMoneda .chip').forEach((x) => x.classList.toggle('activo', x === c));
+  renderMovimientos();
+}));
 
 function renderMovimientos() {
   const lista = datos.movimientos
-    .filter((m) => enMes(m.fecha) && (filtroMov === 'todos' || m.tipo === filtroMov))
+    .filter((m) => enMes(m.fecha) && (filtroMov === 'todos' || m.tipo === filtroMov)
+      && (filtroMoneda === 'todas' || monedaDe(m) === filtroMoneda))
     .sort((a, b) => b.fecha.localeCompare(a.fecha));
   $('#listaMov').innerHTML = lista.length
     ? lista.map((m) => `<li class="item" data-id="${m.id}">
@@ -332,34 +341,47 @@ function renderMovimientos() {
           <div class="principal">${escapar(m.descripcion || m.categoria)}</div>
           <div class="sec">${escapar(m.categoria)} · ${fmtCorto(m.fecha)}${porOtro(m.autor) ? ` · ${escapar(m.autor)}` : ''}</div>
         </div>
-        <div class="monto ${m.tipo}">${m.tipo === 'gasto' ? '−' : '+'}${fmtDinero(m.monto)}</div>
+        <div class="monto ${m.tipo}">${m.tipo === 'gasto' ? '−' : '+'}${fmtDinero(m.monto, monedaDe(m))}</div>
         <button class="borrar" data-tipo="mov" aria-label="Eliminar">✕</button>
       </li>`).join('')
     : '<li class="vacio">Sin movimientos este mes</li>';
 }
 
-// ---------- Resumen ----------
-function renderResumen() {
-  const delMes = datos.movimientos.filter((m) => enMes(m.fecha));
-  const suma = (tipo) => delMes.filter((m) => m.tipo === tipo).reduce((s, m) => s + m.monto, 0);
-  const ingresos = suma('ingreso');
-  const gastos = suma('gasto');
-  const balance = ingresos - gastos;
-  $('#totIngresos').textContent = fmtDinero(ingresos, 0);
-  $('#totGastos').textContent = fmtDinero(gastos, 0);
-  $('#totBalance').textContent = (balance < 0 ? '−' : '') + fmtDinero(Math.abs(balance), 0);
-  $('#totBalance').style.color = balance < 0 ? 'var(--gasto)' : 'var(--ingreso)';
+// ---------- Resumen: una caja por moneda ----------
+// Saldo de la caja = todo lo acumulado hasta el fin del mes elegido; ingresos y gastos son los del mes.
+const NOMBRE_CAJA = { UYU: 'Caja pesos', USD: 'Caja dólares' };
+const conSigno = (n, moneda, dec) => (n < 0 ? '−' : '') + fmtDinero(Math.abs(n), moneda, dec);
 
-  const porCat = {};
-  delMes.filter((m) => m.tipo === 'gasto').forEach((m) => { porCat[m.categoria] = (porCat[m.categoria] || 0) + m.monto; });
-  const cats = Object.entries(porCat).sort((a, b) => b[1] - a[1]);
-  const max = cats.length ? cats[0][1] : 1;
-  $('#porCategoria').innerHTML = cats.length
-    ? cats.map(([c, v]) => `<div class="barra">
-        <div class="cab"><span>${escapar(c)}</span><span>${fmtDinero(v)} · ${Math.round((v / gastos) * 100)}%</span></div>
-        <div class="pista"><div class="relleno" style="width:${(v / max) * 100}%"></div></div>
-      </div>`).join('')
-    : '<p class="vacio">Sin gastos este mes</p>';
+function renderResumen() {
+  const finMes = claveMes() + '-31';
+  const suma = (lista, tipo) => lista.filter((m) => m.tipo === tipo).reduce((s, m) => s + m.monto, 0);
+  $('#cajas').innerHTML = Object.keys(MONEDAS).map((mon) => {
+    const deMoneda = datos.movimientos.filter((m) => monedaDe(m) === mon);
+    const hastaMes = deMoneda.filter((m) => m.fecha <= finMes);
+    const delMes = deMoneda.filter((m) => enMes(m.fecha));
+    const saldo = suma(hastaMes, 'ingreso') - suma(hastaMes, 'gasto');
+    return `<div class="caja">
+      <div class="caja-cab"><span>${NOMBRE_CAJA[mon]}</span><strong class="${saldo < 0 ? 'negativo' : ''}">${conSigno(saldo, mon, 0)}</strong></div>
+      <div class="caja-mes">
+        <span>Ingresos del mes <b class="ingreso">+${fmtDinero(suma(delMes, 'ingreso'), mon, 0)}</b></span>
+        <span>Gastos del mes <b class="gasto">−${fmtDinero(suma(delMes, 'gasto'), mon, 0)}</b></span>
+      </div>
+    </div>`;
+  }).join('');
+
+  const bloques = Object.keys(MONEDAS).map((mon) => {
+    const gastosMes = datos.movimientos.filter((m) => m.tipo === 'gasto' && monedaDe(m) === mon && enMes(m.fecha));
+    if (!gastosMes.length) return '';
+    const total = gastosMes.reduce((s, m) => s + m.monto, 0);
+    const porCat = {};
+    gastosMes.forEach((m) => { porCat[m.categoria] = (porCat[m.categoria] || 0) + m.monto; });
+    const cats = Object.entries(porCat).sort((x, y) => y[1] - x[1]);
+    return `<div class="subtitulo">${mon === 'UYU' ? 'Pesos' : 'Dólares'}</div>` + cats.map(([c, v]) => `<div class="barra">
+        <div class="cab"><span>${escapar(c)}</span><span>${fmtDinero(v, mon)} · ${Math.round((v / total) * 100)}%</span></div>
+        <div class="pista"><div class="relleno" style="width:${(v / cats[0][1]) * 100}%"></div></div>
+      </div>`).join('');
+  }).join('');
+  $('#porCategoria').innerHTML = bloques || '<p class="vacio">Sin gastos este mes</p>';
 }
 
 // ---------- Acciones en listas (delegación) ----------
@@ -439,7 +461,7 @@ function renderDetalle() {
     ['Cliente', cliente && cliente.nombre],
     ['Entrega', [fmtDia(ev.fecha), ev.hora].filter(Boolean).join(' · ')],
     ['Detalles', ev.nota],
-    ['Precio', ev.precio != null ? fmtPrecio(ev.precio, ev.moneda) : ''],
+    ['Precio', ev.precio != null ? fmtDinero(ev.precio, monedaDe(ev)) : ''],
     ['Creada', [ev.creada && fmtMomento(ev.creada), porOtro(ev.autor) && `por ${ev.autor}`].filter(Boolean).join(' ')],
   ]);
   $('#detHecho').checked = !!ev.hecho;
@@ -736,7 +758,7 @@ renderCuenta();
 
 // ---------- Render general ----------
 function render() {
-  const mes = new Date(mesActual.anio, mesActual.mes, 1).toLocaleDateString('es', { month: 'long', year: 'numeric' });
+  const mes = new Date(mesActual.anio, mesActual.mes, 1).toLocaleDateString('es', { month: innerWidth < 600 ? 'short' : 'long', year: 'numeric' }).replace(' de ', ' ').replace('.', '');
   $('#mesLabel').textContent = mes.charAt(0).toUpperCase() + mes.slice(1);
   renderResumen();
   renderAgenda();

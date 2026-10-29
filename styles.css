@@ -58,7 +58,7 @@ h2 { font-size: 0.95rem; color: var(--muted); margin: 24px 0 10px; text-transfor
 .marca { display: flex; align-items: center; gap: 10px; }
 .marca img { height: 36px; width: auto; border-radius: 8px; display: block; }
 .mes { display: flex; align-items: center; gap: 4px; font-weight: 600; }
-.mes span { min-width: 120px; text-align: center; }
+.mes span { min-width: 72px; text-align: center; white-space: nowrap; }
 
 button, .boton {
   font: inherit; border: 0; border-radius: 10px; cursor: pointer;
@@ -71,12 +71,17 @@ button.icon { background: transparent; color: var(--text); padding: 6px 10px; fo
 .vista { display: none; padding-top: 16px; }
 .vista.activa { display: block; }
 
-.tarjetas { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
-.tarjeta { background: var(--card); border-radius: var(--radius); padding: 12px; border: 1px solid var(--line); min-width: 0; }
-.tarjeta span { display: block; font-size: .8rem; color: var(--muted); }
-.tarjeta strong { display: block; font-size: 1.05rem; margin-top: 4px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.tarjeta.ingreso strong { color: var(--ingreso); }
-.tarjeta.gasto strong { color: var(--gasto); }
+.cajas { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 8px; }
+.caja { background: var(--card); border-radius: var(--radius); padding: 12px 14px; border: 1px solid var(--line); min-width: 0; }
+.caja-cab { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; }
+.caja-cab span { color: var(--muted); font-size: .9rem; }
+.caja-cab strong { font-size: 1.35rem; color: var(--ingreso); white-space: nowrap; }
+.caja-cab strong.negativo { color: var(--gasto); }
+.caja-mes { display: flex; justify-content: space-between; flex-wrap: wrap; gap: 4px 12px; margin-top: 8px; font-size: .82rem; color: var(--muted); }
+.caja-mes b.ingreso { color: var(--ingreso); }
+.caja-mes b.gasto { color: var(--gasto); }
+.subtitulo { font-weight: 600; font-size: .9rem; margin: 12px 0 6px; }
+#filtrosMoneda { margin-top: 0; }
 
 .barras .barra { margin-bottom: 10px; }
 .barra .cab { display: flex; justify-content: space-between; font-size: .9rem; margin-bottom: 4px; }

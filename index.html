@@ -74,11 +74,7 @@
 
     <!-- DINERO: resumen del mes y movimientos -->
     <section id="vista-dinero" class="vista">
-      <div class="tarjetas">
-        <div class="tarjeta ingreso"><span>Ingresos</span><strong id="totIngresos">$0</strong></div>
-        <div class="tarjeta gasto"><span>Gastos</span><strong id="totGastos">$0</strong></div>
-        <div class="tarjeta balance"><span>Balance</span><strong id="totBalance">$0</strong></div>
-      </div>
+      <div class="cajas" id="cajas"></div>
 
       <h2>Gastos por categoría</h2>
       <div id="porCategoria" class="barras"></div>
@@ -89,10 +85,11 @@
           <label><input type="radio" name="tipo" value="gasto" checked><span>Gasto</span></label>
           <label><input type="radio" name="tipo" value="ingreso"><span>Ingreso</span></label>
         </div>
-        <div class="fila">
+        <div class="fila precio">
+          <select name="moneda"><option value="UYU">$ pesos</option><option value="USD">US$ dólares</option></select>
           <input name="monto" type="number" inputmode="decimal" step="0.01" min="0.01" placeholder="Monto" required>
-          <input name="fecha" type="date" required>
         </div>
+        <input name="fecha" type="date" required>
         <select name="categoria" id="selCategoria"></select>
         <input name="descripcion" placeholder="Descripción (opcional)" maxlength="120">
         <button type="submit">Guardar movimiento</button>
@@ -101,6 +98,11 @@
         <button data-filtro="todos" class="chip activo">Todos</button>
         <button data-filtro="gasto" class="chip">Gastos</button>
         <button data-filtro="ingreso" class="chip">Ingresos</button>
+      </div>
+      <div class="filtros" id="filtrosMoneda">
+        <button data-moneda="todas" class="chip activo">Ambas</button>
+        <button data-moneda="UYU" class="chip">Pesos</button>
+        <button data-moneda="USD" class="chip">Dólares</button>
       </div>
       <ul id="listaMov" class="lista"></ul>
     </section>
