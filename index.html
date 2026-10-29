@@ -46,7 +46,10 @@
   <nav class="lateral" id="lateral">
     <img src="img/logo-encabezado.png" alt="TICs" class="lateral-logo" height="40">
     <button data-vista="ordenes" class="activo"><span>📋</span>Órdenes</button>
+    <button data-vista="ventas"><span>🧾</span>Ventas</button>
     <button data-vista="clientes"><span>👥</span>Clientes</button>
+    <button data-vista="productos"><span>📦</span>Productos</button>
+    <button data-vista="proveedores"><span>🚚</span>Proveedores</button>
     <button data-vista="dinero"><span>💰</span>Dinero</button>
     <button data-vista="cuenta"><span>⚙️</span>Cuenta</button>
   </nav>
@@ -72,8 +75,38 @@
       <ul id="listaClientes" class="lista"></ul>
     </section>
 
+    <!-- VENTAS de productos o servicios (aparte de las órdenes) -->
+    <section id="vista-ventas" class="vista">
+      <div class="cotizacion">💱 <span class="cotizacion-texto"></span> <button type="button" class="enlace btn-cotizacion">Cambiar</button></div>
+      <div class="barra-acciones">
+        <input type="search" id="buscarVenta" placeholder="Buscar venta o cliente…">
+        <button id="btnNuevaVenta">+ Nueva venta</button>
+      </div>
+      <ul id="listaVentas" class="lista"></ul>
+    </section>
+
+    <!-- PRODUCTOS y stock -->
+    <section id="vista-productos" class="vista">
+      <div class="cotizacion">💱 <span class="cotizacion-texto"></span> <button type="button" class="enlace btn-cotizacion">Cambiar</button></div>
+      <div class="barra-acciones">
+        <input type="search" id="buscarProducto" placeholder="Buscar producto o código…">
+        <button id="btnNuevoProducto">+ Nuevo producto</button>
+      </div>
+      <ul id="listaProductos" class="lista"></ul>
+    </section>
+
+    <!-- PROVEEDORES y compras -->
+    <section id="vista-proveedores" class="vista">
+      <div class="barra-acciones">
+        <input type="search" id="buscarProveedor" placeholder="Buscar proveedor…">
+        <button id="btnNuevoProveedor">+ Nuevo proveedor</button>
+      </div>
+      <ul id="listaProveedores" class="lista"></ul>
+    </section>
+
     <!-- DINERO: resumen del mes y movimientos -->
     <section id="vista-dinero" class="vista">
+      <div class="cotizacion">💱 <span class="cotizacion-texto"></span> <button type="button" class="enlace btn-cotizacion">Cambiar</button></div>
       <div class="cajas" id="cajas"></div>
 
       <h2>Gastos por categoría</h2>
@@ -146,6 +179,14 @@
           <input name="precio" type="number" inputmode="decimal" step="0.01" min="0" placeholder="Precio">
         </div>
       </label>
+      <div class="editor-lineas" id="lineasOrden" data-modo="orden">
+        <div class="etiqueta-campo">Productos usados (se descuentan del stock al marcar la orden realizada)</div>
+        <div class="lineas"></div>
+        <p class="ayuda lineas-bloqueo" hidden>La orden ya está realizada y descontó el stock: para cambiar productos, desmarcala primero.</p>
+        <div class="fila-botones"><button type="button" class="secundario agregar-producto">+ Producto</button></div>
+        <div class="total-lineas"></div>
+      </div>
+      <div class="total-documento" id="totalOrden"></div>
       <button type="submit">Guardar orden</button>
     </form>
   </dialog>
@@ -157,10 +198,12 @@
       <button class="icon" id="detCerrar" aria-label="Cerrar">✕</button>
     </div>
     <dl class="datos" id="detDatos"></dl>
+    <div id="detProductos"></div>
     <label class="check"><input type="checkbox" id="detHecho"> Trabajo realizado</label>
     <div class="sec" id="detHechoEn"></div>
     <div class="fila-botones acciones-detalle">
       <button id="detEditar" class="secundario">✏️ Editar</button>
+      <button id="detCobro" class="secundario">💵 Registrar cobro</button>
       <button id="detEliminar" class="secundario peligro">Eliminar</button>
     </div>
     <h2>Novedades</h2>
@@ -201,8 +244,138 @@
       <button id="cliEditar" class="secundario">✏️ Editar</button>
       <button id="cliEliminar" class="secundario peligro">Eliminar</button>
     </div>
+    <details class="cuenta-cte">
+      <summary>Estado de cuenta</summary>
+      <div id="cliCuenta"></div>
+      <div class="fila-botones"><button id="cliCobro" class="secundario">💵 Registrar cobro</button><button id="cliVenta" class="secundario">🧾 Nueva venta</button></div>
+    </details>
     <h2>Órdenes</h2>
     <ul id="cliOrdenes" class="lista"></ul>
+  </dialog>
+
+  <!-- Producto -->
+  <dialog id="dlgProducto" class="detalle">
+    <div class="detalle-cab"><div class="detalle-titulo" id="dlgProductoTitulo">Nuevo producto</div>
+      <button class="icon" type="button" data-cerrar aria-label="Cerrar">✕</button></div>
+    <form id="formProducto" class="formulario">
+      <input name="nombre" placeholder="Nombre del producto" required maxlength="120">
+      <input name="codigo" placeholder="Código (opcional)" maxlength="60">
+      <label class="etiqueta-campo">Moneda de costo y precio
+        <select name="moneda"><option value="UYU">$ pesos</option><option value="USD">US$ dólares</option></select></label>
+      <div class="fila">
+        <label class="etiqueta-campo">Costo<input name="costo" type="number" inputmode="decimal" step="0.01" min="0" placeholder="0"></label>
+        <label class="etiqueta-campo">Precio de venta<input name="precio" type="number" inputmode="decimal" step="0.01" min="0" placeholder="0"></label>
+      </div>
+      <div class="fila">
+        <label class="etiqueta-campo">Stock actual<input name="stock" type="number" step="any" placeholder="0"></label>
+        <label class="etiqueta-campo">Avisar con stock ≤<input name="stockMin" type="number" step="any" min="0" placeholder="0"></label>
+      </div>
+      <button type="submit">Guardar producto</button>
+      <button type="button" id="btnEliminarProducto" class="secundario peligro">Eliminar producto</button>
+    </form>
+  </dialog>
+
+  <!-- Proveedor -->
+  <dialog id="dlgProveedor" class="detalle">
+    <div class="detalle-cab"><div class="detalle-titulo" id="dlgProveedorTitulo">Nuevo proveedor</div>
+      <button class="icon" type="button" data-cerrar aria-label="Cerrar">✕</button></div>
+    <form id="formProveedor" class="formulario">
+      <input name="nombre" placeholder="Nombre o empresa" required maxlength="120">
+      <input name="telefono" type="tel" placeholder="Teléfono" maxlength="40">
+      <input name="email" type="email" placeholder="Correo (opcional)" maxlength="120">
+      <input name="direccion" placeholder="Dirección (opcional)" maxlength="200">
+      <input name="rut" placeholder="RUT / razón social (opcional)" maxlength="120">
+      <textarea name="notas" rows="2" maxlength="1000" placeholder="Notas (opcional)"></textarea>
+      <button type="submit">Guardar proveedor</button>
+    </form>
+  </dialog>
+
+  <!-- Ficha de proveedor: contacto, compras y estado de cuenta -->
+  <dialog id="dlgVerProveedor" class="detalle">
+    <div class="detalle-cab"><div class="detalle-titulo" id="provNombre"></div>
+      <button class="icon" type="button" data-cerrar aria-label="Cerrar">✕</button></div>
+    <dl class="datos" id="provDatos"></dl>
+    <div class="fila-botones" id="provContacto"></div>
+    <div class="fila-botones acciones-detalle">
+      <button id="provCompra">+ Nueva compra</button>
+      <button id="provPago" class="secundario">💵 Registrar pago</button>
+      <button id="provEditar" class="secundario">✏️ Editar</button>
+      <button id="provEliminar" class="secundario peligro">Eliminar</button>
+    </div>
+    <h2>Estado de cuenta</h2>
+    <div id="provCuenta"></div>
+  </dialog>
+
+  <!-- Compra a proveedor -->
+  <dialog id="dlgCompra" class="detalle">
+    <div class="detalle-cab"><div class="detalle-titulo">Nueva compra</div>
+      <button class="icon" type="button" data-cerrar aria-label="Cerrar">✕</button></div>
+    <form id="formCompra" class="formulario">
+      <label class="etiqueta-campo">Proveedor<select name="proveedorId" required></select></label>
+      <div class="fila">
+        <input name="fecha" type="date" required>
+        <select name="moneda" class="moneda-doc"><option value="UYU">$ pesos</option><option value="USD">US$ dólares</option></select>
+      </div>
+      <div class="editor-lineas" id="lineasCompra" data-modo="compra">
+        <div class="etiqueta-campo">Productos comprados (suman stock)</div>
+        <div class="lineas"></div>
+        <div class="fila-botones"><button type="button" class="secundario agregar-producto">+ Producto</button><button type="button" class="secundario nuevo-producto">+ Producto nuevo</button></div>
+        <div class="total-lineas"></div>
+      </div>
+      <textarea name="notas" rows="2" maxlength="500" placeholder="Notas (opcional, ej. n.º de factura)"></textarea>
+      <label class="check"><input type="checkbox" name="pagada" checked> Pagada ahora (se descuenta de la caja)</label>
+      <button type="submit">Guardar compra</button>
+    </form>
+  </dialog>
+
+  <!-- Venta -->
+  <dialog id="dlgVenta" class="detalle">
+    <div class="detalle-cab"><div class="detalle-titulo">Nueva venta</div>
+      <button class="icon" type="button" data-cerrar aria-label="Cerrar">✕</button></div>
+    <form id="formVenta" class="formulario">
+      <label class="etiqueta-campo">Cliente<select name="clienteId"></select></label>
+      <div class="fila">
+        <input name="fecha" type="date" required>
+        <select name="moneda" class="moneda-doc"><option value="UYU">$ pesos</option><option value="USD">US$ dólares</option></select>
+      </div>
+      <div class="editor-lineas" id="lineasVenta" data-modo="venta">
+        <div class="etiqueta-campo">Productos y servicios</div>
+        <div class="lineas"></div>
+        <div class="fila-botones"><button type="button" class="secundario agregar-producto">+ Producto</button><button type="button" class="secundario agregar-servicio">+ Servicio</button></div>
+        <div class="total-lineas"></div>
+      </div>
+      <textarea name="notas" rows="2" maxlength="500" placeholder="Notas (opcional)"></textarea>
+      <label class="check"><input type="checkbox" name="cobrada" checked> Cobrada ahora (entra a la caja)</label>
+      <p class="ayuda">Sin cliente la venta se cobra en el momento. Con cliente puede quedar debiendo y va a su estado de cuenta.</p>
+      <button type="submit">Guardar venta</button>
+    </form>
+  </dialog>
+
+  <!-- Detalle de venta o compra -->
+  <dialog id="dlgDoc" class="detalle">
+    <div class="detalle-cab"><div class="detalle-titulo" id="docTitulo"></div>
+      <button class="icon" type="button" data-cerrar aria-label="Cerrar">✕</button></div>
+    <dl class="datos" id="docDatos"></dl>
+    <div id="docLineas"></div>
+    <div class="fila-botones acciones-detalle">
+      <button id="docPago" class="secundario">💵 Registrar cobro</button>
+      <button id="docEliminar" class="secundario peligro">Eliminar</button>
+    </div>
+  </dialog>
+
+  <!-- Cobro a cliente o pago a proveedor -->
+  <dialog id="dlgPago" class="detalle">
+    <div class="detalle-cab"><div class="detalle-titulo" id="pagoTitulo">Registrar cobro</div>
+      <button class="icon" type="button" data-cerrar aria-label="Cerrar">✕</button></div>
+    <form id="formPago" class="formulario">
+      <div class="fila precio">
+        <select name="moneda"><option value="UYU">$ pesos</option><option value="USD">US$ dólares</option></select>
+        <input name="monto" type="number" inputmode="decimal" step="0.01" min="0.01" placeholder="Monto" required>
+      </div>
+      <input name="fecha" type="date" required>
+      <input name="nota" placeholder="Nota (opcional, ej. transferencia)" maxlength="200">
+      <button type="submit">Guardar</button>
+    </form>
   </dialog>
 
   <!-- Cambio de contraseña para usuarios con contraseña -->
@@ -226,5 +399,6 @@
   <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
   <script src="firebase-config.js"></script>
   <script src="app.js"></script>
+  <script src="comercio.js"></script>
 </body>
 </html>

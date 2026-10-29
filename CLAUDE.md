@@ -3,7 +3,7 @@
 App personal de agenda, gastos e ingresos. El usuario la usa a diario en un celular Android (instalada como PWA desde Chrome) y en la PC (Chrome). Se habla en español rioplatense (Uruguay). Se mejora de a poco según el uso: cambios chicos, probados y publicados.
 
 ## Cómo está hecha
-- HTML, CSS y JavaScript puro, sin build ni dependencias: `index.html`, `styles.css`, `app.js`.
+- HTML, CSS y JavaScript puro, sin build ni dependencias: `index.html`, `styles.css`, `app.js` (datos, sincronización, login, órdenes, clientes, Dinero) y `comercio.js` (cotización, productos, proveedores, compras, ventas, cobros/pagos y estados de cuenta). `comercio.js` se carga después de `app.js` y tiene al final el primer `render()` y el arranque.
 - `sw.js`: service worker con estrategia "red primero" para que funcione sin conexión. Solo intercepta archivos propios y el SDK de Firebase (www.gstatic.com); nunca las conexiones de Firestore ni del login. Al cambiar la lista de archivos, subir la versión de `CACHE`.
 - Montos con formato `es-UY` ($1.500,00). Fechas guardadas como `YYYY-MM-DD` en hora local.
 
@@ -29,29 +29,25 @@ App personal de agenda, gastos e ingresos. El usuario la usa a diario en un celu
 - Logo de la empresa del usuario (TICs, "Tecnología a medida"): fondo gris oscuro #373e46, letras blancas y amarillo #fcb817. Está en `img/`: íconos de la app (versiones normal y "maskable" con margen para que Android no corte el texto) y `logo-encabezado.png` (solo "TICs", sin el lema, porque a 36 px no se lee) en el encabezado. Para regenerarlos se parte de la imagen original cuadrada con Pillow.
 
 ## Funcionalidades y decisiones
-- **Navegación: panel lateral** con Órdenes | Clientes | Dinero | Cuenta (fijo a la izquierda desde 900 px; en el celular es un cajón que se abre con ☰). La app abre en Órdenes.
-- **Privacidad**: el usuario muestra la lista de órdenes a otras personas y no quiere que vean plata. Las listas (órdenes, clientes) nunca muestran importes; el precio de una orden solo aparece en su detalle. Lo económico va en Dinero.
+- **Navegación: panel lateral** con Órdenes | Ventas | Clientes | Productos | Proveedores | Dinero | Cuenta (fijo a la izquierda desde 900 px; en el celular es un cajón que se abre con ☰). La app abre en Órdenes.
+- **Privacidad**: el usuario muestra la lista de órdenes a otras personas y no quiere que vean plata. Las listas de órdenes y de clientes nunca muestran importes; el precio y total de una orden solo aparecen en su detalle, y el estado de cuenta en la ficha del cliente va plegado. Ventas, Productos, Proveedores y Dinero sí muestran plata.
 - **Cuenta**: sincronización, cambio de contraseña y respaldo (exportar/importar JSON, incluye clientes).
 - **Órdenes de trabajo** (antes "Agenda"; se siguen guardando en la colección `agenda` para no migrar datos): título, `clienteId`, fecha/hora de entrega, `nota` (detalles), `precio` + `moneda` (`UYU` o `USD`, opcionales), `creada`. Son órdenes generales: se sacó Personal/Laboral a pedido del usuario (el campo viejo `area` queda en los datos y se ignora). Se crean y editan en un `<dialog>` ("+ Nueva orden", "✏️ Editar"). Buscador por título, detalles o cliente; "Mostrar realizadas". Colores: amarillo si vence en 24 h o menos, rojo si ya venció (vencimiento = hora indicada o fin del día; se recalcula cada minuto). Tocando una orden se abre el detalle con sus datos, "Trabajo realizado" (`hechoEn`, `hechoPor`), Eliminar y las **Novedades** (`actualizaciones`: `[{id, texto, fecha ISO, autor}]`). La lista muestra 👤 cliente, 💬 cantidad de novedades y la última.
 - **Clientes** (colección `clientes`): nombre, teléfono, correo, dirección, RUT, notas. Lista con buscador y órdenes pendientes. La ficha tiene Llamar, WhatsApp (número pasado a formato internacional, Uruguay 598 por defecto), Correo, "+ Nueva orden" (con el cliente ya elegido), Editar, Eliminar (sus órdenes quedan sin cliente) y la lista de sus órdenes.
 - **Dinero**: dos cajas, **pesos (UYU) y dólares (USD)**: cada movimiento tiene `moneda` (lo viejo sin el campo cuenta como pesos; `monedaDe()`). Cada caja muestra el saldo acumulado hasta el fin del mes elegido y los ingresos y gastos del mes. Gastos por categoría separados por moneda; filtros por tipo y por moneda. Selector de mes (solo visible en esta sección). Categorías de gasto pedidas por el usuario: Personal, Comida, Servicios, Ocio, Proveedores, Ventas, Otros. De ingreso: Sueldo, Ventas, Servicios, Otros. Los movimientos viejos conservan su categoría aunque ya no esté en la lista.
 
-## Pedido en curso (29/10/2026): proveedores, productos con stock, ventas y productos en órdenes
-Hecho: las dos cajas en Dinero. Falta, en etapas y con estas preguntas a confirmar con el usuario:
-- **Productos** (stock): nombre, código, costo, precio de venta y moneda, stock actual, stock mínimo con aviso. Ajuste manual de stock.
-- **Proveedores**: ficha como clientes y **compras** (proveedor, fecha, moneda, líneas producto × cantidad × costo). La compra suma stock y genera un gasto en Dinero (categoría Proveedores).
-- **Ventas** (aparte de las órdenes): cliente opcional, fecha, moneda, líneas de productos (restan stock) o servicios libres. Genera un ingreso en Dinero (categoría Ventas).
-- **Órdenes con productos**: líneas producto × cantidad × precio, además del precio del servicio; total = servicio + productos. Restan stock.
-- Preguntas: ¿compras y ventas siempre al contado o pueden quedar a crédito (eso lleva al estado de cuenta)?; ¿el stock de una orden se descuenta al agregar el producto o al marcarla realizada?; ¿qué pasa con monedas mezcladas (producto en dólares vendido en pesos: cotización manual)?
-- Menú lateral propuesto: Órdenes, Ventas, Clientes, Productos, Proveedores, Dinero, Cuenta.
+## Comercio (comercio.js)
+Pedido del usuario: dos cajas, proveedores, productos con stock, ventas y productos en órdenes. Decisiones que tomó: **compras, ventas y órdenes pueden quedar debiendo**; el **stock de una orden se descuenta al marcarla realizada**; hay una **cotización del dólar** cargada a mano que convierte precios sola.
+- Colecciones nuevas en `usuarios/{espacio}`: `productos`, `proveedores`, `compras`, `ventas`, `pagos`, `config` (doc `general` con `cotizacion` en pesos por US$ y `cotizacionFecha`). Las reglas ya las cubren. Están en `COLECCIONES` (sincronización y respaldo).
+- **Líneas** `[{productoId|null, nombre, cantidad, precio}]` en órdenes, ventas y compras, con un editor común (`crearEditorLineas`). Al elegir un producto el precio (venta) o costo (compra) se convierte a la moneda del documento con la cotización; al cambiar la moneda del documento se convierten las líneas. Ventas admiten servicios libres (productoId null).
+- **Stock**: la compra suma, la venta resta, la orden resta al marcarse realizada (`stockDescontado`; al desmarcarla o borrarla se devuelve; con stock descontado no se pueden editar sus productos). Ajuste manual editando el producto. Se escribe con `FieldValue.increment` dentro de `transaccion()` (lote atómico de Firestore). Alerta: rojo sin stock, amarillo en el mínimo.
+- La compra actualiza el costo del producto al de la compra.
+- **Cobros y pagos** (`pagos`): cada uno genera su movimiento en Dinero (`pagoId` ↔ `movimientoId`; cobro de orden → ingreso "Servicios", de venta o a cuenta → "Ventas", pago a proveedor → gasto "Proveedores"). Borrar el movimiento en Dinero borra el pago y viceversa. Al crear una venta o compra, "Cobrada/Pagada ahora" genera el cobro/pago por el total. Venta sin cliente = siempre al contado.
+- **Estados de cuenta** por moneda: cliente = ventas + órdenes realizadas con total (servicio + productos) − cobros; proveedor = compras − pagos. Los cobros desde la ficha del cliente son "a cuenta" (no se asignan a una venta u orden puntual, así que esa venta sigue figurando con "Falta cobrar").
+- Borrar una venta o compra devuelve el stock y borra sus cobros/pagos (y sus movimientos). No se editan: se borran y se cargan de nuevo.
 
-## Pendiente: estado de cuenta por cliente
-Ya existen clientes y órdenes con precio. Falta el **estado de cuenta** (lo que se le cobró menos lo que pagó, con saldo). Preguntas abiertas con el usuario:
-1. ¿Lo que se debe sale del precio de cada orden (al marcarla realizada, o al crearla) o también de cargos sueltos?
-2. ¿Cómo se registran los pagos? Propuesta: un ingreso de Dinero con `clienteId` (y opcionalmente `ordenId`); pagos parciales permitidos.
-3. Con pesos y dólares, saldo separado por moneda.
-4. ¿Dónde se ve? La ficha del cliente hoy no muestra plata (privacidad); el estado de cuenta podría ir en un bloque aparte que se despliega, o en Dinero.
-5. Otras ideas: número de orden correlativo, presupuestos, mandar el estado de cuenta al cliente por WhatsApp o PDF.
+## Ideas para más adelante (comercio)
+Número de orden/venta correlativo, presupuestos, mandar el estado de cuenta por WhatsApp o PDF, editar ventas y compras, asignar un cobro a cuenta a una venta puntual, historial de cotizaciones.
 
 ## Ideas pendientes ofrecidas (no pedidas todavía)
 Aviso de versión nueva, editar movimientos, categorías personalizables, gastos fijos mensuales, presupuesto por categoría, recordatorios con notificación, gráfico de evolución mensual.

@@ -7,22 +7,23 @@ const CATEGORIAS = {
 };
 
 // ---------- Datos ----------
+// Cada colección es una lista de documentos. "agenda" son las órdenes de trabajo; el comercio
+// (productos, proveedores, compras, ventas, pagos y la cotización en config) está en comercio.js.
+const COLECCIONES = ['agenda', 'movimientos', 'clientes', 'productos', 'proveedores', 'compras', 'ventas', 'pagos', 'config'];
+// Completa las colecciones que falten (datos o respaldos de versiones anteriores)
+const completar = (d) => { COLECCIONES.forEach((col) => { if (!Array.isArray(d[col])) d[col] = []; }); return d; };
 function cargar() {
   try {
     const d = JSON.parse(localStorage.getItem(CLAVE));
-    if (d && Array.isArray(d.agenda) && Array.isArray(d.movimientos)) {
-      if (!Array.isArray(d.clientes)) d.clientes = [];
-      return d;
-    }
+    if (d && Array.isArray(d.agenda) && Array.isArray(d.movimientos)) return completar(d);
   } catch (e) { /* almacenamiento no disponible o dañado */ }
-  return { agenda: [], movimientos: [], clientes: [] };
+  return completar({});
 }
 function guardar() {
   try { localStorage.setItem(CLAVE, JSON.stringify(datos)); }
   catch (e) { aviso('No se pudo guardar en este dispositivo'); }
 }
 const datos = cargar();
-const COLECCIONES = ['agenda', 'movimientos', 'clientes'];
 const nuevoId = () => Date.now().toString(36) + Math.random().toString(36).slice(2, 7);
 
 // ---------- Utilidades ----------
@@ -53,7 +54,7 @@ function aviso(texto) {
 const ahora = new Date();
 let mesActual = { anio: ahora.getFullYear(), mes: ahora.getMonth() }; // mes 0-11
 let filtroMov = 'todos';
-const TITULOS = { ordenes: 'Órdenes', clientes: 'Clientes', dinero: 'Dinero', cuenta: 'Cuenta' };
+const TITULOS = { ordenes: 'Órdenes', ventas: 'Ventas', clientes: 'Clientes', productos: 'Productos', proveedores: 'Proveedores', dinero: 'Dinero', cuenta: 'Cuenta' };
 
 const claveMes = () => `${mesActual.anio}-${pad(mesActual.mes + 1)}`;
 const enMes = (iso) => iso.startsWith(claveMes());
@@ -170,8 +171,19 @@ function abrirFormOrden(orden, clienteId) {
   f.nota.value = orden ? orden.nota || '' : '';
   f.precio.value = orden && orden.precio != null ? orden.precio : '';
   f.moneda.value = (orden && orden.moneda) || 'UYU';
+  // con el stock ya descontado (orden realizada) los productos no se pueden cambiar
+  editorOrden.cargar(orden ? orden.lineas : [], f.moneda.value, !!(orden && orden.stockDescontado));
+  actualizarTotalOrden();
   $('#dlgOrden').showModal();
 }
+function actualizarTotalOrden() {
+  const f = $('#formOrden');
+  const servicio = parseFloat(f.precio.value) || 0;
+  const productos = totalLineas(editorOrden.lineas);
+  $('#totalOrden').textContent = productos ? `Total: ${fmtDinero(servicio + productos, f.moneda.value)} (servicio + productos)` : '';
+}
+$('#formOrden').precio.addEventListener('input', actualizarTotalOrden);
+$('#formOrden').moneda.addEventListener('change', (e) => { editorOrden.cambiarMoneda(e.target.value); actualizarTotalOrden(); });
 $('#btnNuevaOrden').addEventListener('click', () => abrirFormOrden(null));
 $('#formOrden').addEventListener('submit', (e) => {
   e.preventDefault();
@@ -186,6 +198,11 @@ $('#formOrden').addEventListener('submit', (e) => {
     precio: Number.isFinite(precio) ? precio : null,
     moneda: f.moneda.value,
   };
+  if (!editorOrden.bloqueado) {
+    const lineas = editorOrden.validas();
+    if (!lineas) return;
+    campos.lineas = lineas;
+  }
   if (ordenEditando) {
     actualizar('agenda', ordenEditando, campos);
     aviso('Orden actualizada');
@@ -259,6 +276,8 @@ function abrirCliente(id) {
 $('#dlgVerCliente').addEventListener('close', () => { clienteVerId = null; });
 $('#cliEditar').addEventListener('click', () => abrirFormCliente(clientePorId(clienteVerId)));
 $('#cliNuevaOrden').addEventListener('click', () => abrirFormOrden(null, clienteVerId));
+$('#cliCobro').addEventListener('click', () => abrirPago({ tipo: 'cobro', clienteId: clienteVerId, titulo: `Cobro: ${clientePorId(clienteVerId).nombre}` }));
+$('#cliVenta').addEventListener('click', () => abrirVenta(clienteVerId));
 $('#cliEliminar').addEventListener('click', () => {
   const c = clientePorId(clienteVerId);
   if (!c || !confirm(`¿Eliminar a ${c.nombre}? Sus órdenes no se borran, quedan sin cliente.`)) return;
@@ -282,6 +301,7 @@ function renderCliente() {
     wa && `<a class="boton secundario" href="https://wa.me/${wa}" target="_blank" rel="noopener">💬 WhatsApp</a>`,
     c.email && `<a class="boton secundario" href="mailto:${escapar(c.email)}">✉️ Correo</a>`,
   ].filter(Boolean).join('');
+  $('#cliCuenta').innerHTML = htmlCuenta(cuentaCliente(c.id), 'cliente');
   const ordenes = datos.agenda.filter((o) => o.clienteId === c.id)
     .sort((a, b) => (a.hecho - b.hecho) || ordenAgenda(a, b));
   $('#cliOrdenes').innerHTML = ordenes.length
@@ -388,10 +408,8 @@ function renderResumen() {
 document.addEventListener('click', (e) => {
   const btn = e.target.closest('.borrar');
   if (!btn) return;
-  if (btn.classList.contains('borrar-act')) return; // las novedades se borran desde el detalle
-  const id = btn.closest('[data-id]').dataset.id;
-  if (!confirm('¿Eliminar este movimiento?')) return;
-  eliminar('movimientos', id);
+  if (btn.dataset.tipo !== 'mov') return; // los demás ✕ tienen su propio manejo
+  eliminarMovimiento(btn.closest('[data-id]').dataset.id);
 });
 document.addEventListener('change', (e) => {
   if (!e.target.classList.contains('toggle')) return;
@@ -400,9 +418,8 @@ document.addEventListener('change', (e) => {
 });
 
 // hechoEn guarda cuándo se terminó el trabajo, para llevar el control de lo realizado
-const marcarHecho = (ev, hecho) => actualizar('agenda', ev.id, {
-  hecho, hechoEn: hecho ? new Date().toISOString() : null, hechoPor: hecho ? miNombre() : null,
-});
+// (al marcarla realizada también descuenta del stock los productos usados: ver cambiarRealizada)
+const marcarHecho = (ev, hecho) => cambiarRealizada(ev, hecho);
 
 // ---------- Detalle de tarea y actualizaciones ----------
 const fmtMomento = (iso) => new Date(iso).toLocaleString('es-UY', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit', hour12: false });
@@ -421,10 +438,15 @@ document.addEventListener('click', (e) => {
   if (cli) abrirCliente(cli.closest('[data-id]').dataset.id);
 });
 $('#detEditar').addEventListener('click', () => abrirFormOrden(eventoDetalle()));
+$('#detCobro').addEventListener('click', () => {
+  const ev = eventoDetalle();
+  const saldo = ev ? totalOrden(ev) - cobradoDe('ordenId', ev.id) : 0;
+  abrirPago({ tipo: 'cobro', clienteId: ev.clienteId, ordenId: ev.id, moneda: monedaDe(ev), monto: saldo > 0 ? saldo : '', titulo: `Cobro: ${ev.titulo}` });
+});
 $('#detEliminar').addEventListener('click', () => {
   const ev = eventoDetalle();
   if (!ev || !confirm(`¿Eliminar la orden "${ev.titulo}"? No se puede deshacer.`)) return;
-  eliminar('agenda', ev.id);
+  eliminarOrden(ev);
   $('#detalle').close();
 });
 $('#detCerrar').addEventListener('click', () => $('#detalle').close());
@@ -461,9 +483,17 @@ function renderDetalle() {
     ['Cliente', cliente && cliente.nombre],
     ['Entrega', [fmtDia(ev.fecha), ev.hora].filter(Boolean).join(' · ')],
     ['Detalles', ev.nota],
-    ['Precio', ev.precio != null ? fmtDinero(ev.precio, monedaDe(ev)) : ''],
+    ['Servicio', ev.precio != null ? fmtDinero(ev.precio, monedaDe(ev)) : ''],
     ['Creada', [ev.creada && fmtMomento(ev.creada), porOtro(ev.autor) && `por ${ev.autor}`].filter(Boolean).join(' ')],
   ]);
+  // productos usados, total y lo cobrado (solo en el detalle: la lista de órdenes no muestra plata)
+  const total = totalOrden(ev);
+  const cobrado = cobradoDe('ordenId', ev.id);
+  $('#detProductos').innerHTML = tablaLineas(ev.lineas, monedaDe(ev))
+    + (total ? `<div class="total-documento">Total: ${fmtDinero(total, monedaDe(ev))}${ev.clienteId
+      ? ` · Cobrado: ${fmtDinero(cobrado, monedaDe(ev))}${cobrado < total ? ` · <span class="negativo">Falta: ${fmtDinero(total - cobrado, monedaDe(ev))}</span>` : ' ✅'}` : ''}</div>` : '')
+    + (ev.stockDescontado ? '<p class="ayuda">📦 Productos descontados del stock.</p>' : '');
+  $('#detCobro').hidden = !ev.clienteId || !total;
   $('#detHecho').checked = !!ev.hecho;
   $('#detHechoEn').textContent = ev.hecho && ev.hechoEn
     ? `Realizado el ${fmtMomento(ev.hechoEn)}${porOtro(ev.hechoPor) ? ` por ${ev.hechoPor}` : ''}` : '';
@@ -492,7 +522,7 @@ $('#inputImportar').addEventListener('change', async (e) => {
   try {
     const d = JSON.parse(await archivo.text());
     if (!Array.isArray(d.agenda) || !Array.isArray(d.movimientos)) throw new Error('formato');
-    if (!Array.isArray(d.clientes)) d.clientes = []; // respaldos de antes de existir los clientes
+    completar(d); // respaldos de versiones anteriores
     if (!confirm('Esto reemplaza los datos actuales. ¿Continuar?')) return;
     // los respaldos viejos o editados a mano pueden traer elementos sin id
     COLECCIONES.forEach((col) => d[col].forEach((x) => { x.id = x.id || nuevoId(); }));
@@ -766,11 +796,6 @@ function render() {
   renderMovimientos();
   renderDetalle();
   renderCliente();
+  renderComercio();
 }
-render();
-// los colores de vencimiento dependen de la hora: se recalculan cada minuto
-setInterval(render, 60 * 1000);
-
-if ('serviceWorker' in navigator && location.protocol !== 'file:') {
-  navigator.serviceWorker.register('sw.js').catch(() => {});
-}
+// El primer render y el arranque están al final de comercio.js, que se carga después de este archivo.

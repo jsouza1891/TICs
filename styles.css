@@ -218,3 +218,28 @@ body[data-estado="login"] .login-cargando, body[data-estado="cargando"] .login-p
   opacity: 0; transition: opacity .2s; pointer-events: none; max-width: calc(100% - 32px);
 }
 #toast.visible { opacity: 1; }
+
+/* Comercio: cotización, líneas de productos, totales y estados de cuenta */
+.cotizacion { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; font-size: .85rem; color: var(--muted); margin-bottom: 10px; }
+.cotizacion .enlace { padding: 2px 4px; }
+.editor-lineas { display: grid; gap: 8px; }
+.linea { display: grid; grid-template-columns: 1fr 1fr auto; grid-template-areas: "prod prod prod" "cant precio quitar"; gap: 6px; padding: 8px; border: 1px solid var(--line); border-radius: 10px; }
+.linea > :first-child { grid-area: prod; }
+.linea .l-cant { grid-area: cant; }
+.linea .l-precio { grid-area: precio; }
+.linea .l-quitar { grid-area: quitar; }
+@media (min-width: 600px) {
+  .linea { grid-template-columns: 1fr 90px 120px auto; grid-template-areas: "prod cant precio quitar"; }
+}
+.total-lineas { font-size: .9rem; color: var(--muted); text-align: right; }
+.total-documento { font-weight: 700; text-align: right; margin: 6px 0; }
+.negativo { color: var(--gasto); }
+.tabla-lineas { width: 100%; border-collapse: collapse; font-size: .9rem; margin: 4px 0 8px; }
+.tabla-lineas td { padding: 6px 4px; border-bottom: 1px solid var(--line); vertical-align: top; }
+.tabla-lineas .num { text-align: right; white-space: nowrap; color: var(--muted); }
+.tabla-lineas .num:last-child { color: var(--text); }
+.cuenta-cte { margin-top: 14px; background: var(--card); border: 1px solid var(--line); border-radius: var(--radius); padding: 10px 12px; }
+.cuenta-cte summary { cursor: pointer; font-weight: 600; }
+.cuenta-cte[open] summary { margin-bottom: 10px; }
+.saldos { display: flex; flex-wrap: wrap; gap: 6px 16px; font-weight: 600; margin-bottom: 8px; }
+.lista.cuenta .item { padding: 8px 10px; }
