@@ -46,6 +46,12 @@ Pedido del usuario: dos cajas, proveedores, productos con stock, ventas y produc
 - **Estados de cuenta** por moneda: cliente = ventas + órdenes realizadas con total (servicio + productos) − cobros; proveedor = compras − pagos. Los cobros desde la ficha del cliente son "a cuenta" (no se asignan a una venta u orden puntual, así que esa venta sigue figurando con "Falta cobrar").
 - Borrar una venta o compra devuelve el stock y borra sus cobros/pagos (y sus movimientos). No se editan: se borran y se cargan de nuevo.
 
+## Próximo pedido (anotado el 29/10/2026): comprobante de orden para el cliente
+El usuario quiere **enviarle al cliente un comprobante de la orden** con el detalle del trabajo, los costos (servicio + productos, total) y la fecha de entrega. Todavía no se programó. Propuesta a confirmar:
+- Botón "📄 Comprobante" en el detalle de la orden que arma una página imprimible con logo de TICs (o el nombre del espacio), datos del cliente, número de orden, detalle, tabla de productos, servicio, total, lo cobrado y lo que falta, y fecha de entrega.
+- Enviar: compartir con el menú del celular (`navigator.share`) o por WhatsApp al número del cliente; "Guardar como PDF" desde la ventana de impresión del navegador (sin librerías).
+- Preguntas: ¿PDF adjunto o texto por WhatsApp (o los dos)?; ¿número de orden correlativo (hoy no hay)?; ¿datos de la empresa al pie (RUT, teléfono, dirección)? y en TICs Maldonado ¿su propio logo/datos?; ¿mostrar lo ya cobrado o solo el total?; ¿texto de condiciones (validez, garantía)?
+
 ## Ideas para más adelante (comercio)
 Número de orden/venta correlativo, presupuestos, mandar el estado de cuenta por WhatsApp o PDF, editar ventas y compras, asignar un cobro a cuenta a una venta puntual, historial de cotizaciones.
 
