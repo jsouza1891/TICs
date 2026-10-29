@@ -1,5 +1,5 @@
 // Cache básico para que la app funcione sin conexión
-const CACHE = 'asistente-v5';
+const CACHE = 'asistente-v6';
 const ARCHIVOS = ['./', 'index.html', 'styles.css', 'app.js', 'firebase-config.js', 'manifest.webmanifest', 'img/logo-192.png', 'img/logo-512.png', 'img/logo-encabezado.png'];
 
 self.addEventListener('install', (e) => {

@@ -29,29 +29,20 @@ App personal de agenda, gastos e ingresos. El usuario la usa a diario en un celu
 - Logo de la empresa del usuario (TICs, "Tecnología a medida"): fondo gris oscuro #373e46, letras blancas y amarillo #fcb817. Está en `img/`: íconos de la app (versiones normal y "maskable" con margen para que Android no corte el texto) y `logo-encabezado.png` (solo "TICs", sin el lema, porque a 36 px no se lee) en el encabezado. Para regenerarlos se parte de la imagen original cuadrada con Pillow.
 
 ## Funcionalidades y decisiones
-- **Pestañas: Agenda | Dinero | Cuenta.** La parte económica está separada a propósito: el usuario muestra o comparte tareas con otras personas y no quiere que vean su dinero. La app abre en Agenda, y nada económico debe aparecer en esa pestaña.
-- **Cuenta**: sincronización y respaldo (exportar/importar JSON).
-- **Agenda** (pestaña inicial): área Personal o Laboral (campo `area`; los elementos sin el campo cuentan como personales), con filtros Todas/Personal/Laboral. Colores: amarillo si vence en 24 h o menos, rojo si ya venció. El vencimiento es la hora indicada o fin del día si no tiene hora. Se recalcula cada minuto. La usa sobre todo como agenda de trabajo: tocando una tarea se abre el detalle (`<dialog>`) con la bitácora `actualizaciones` (`[{id, texto, fecha ISO}]`, se agregan y borran) y "Trabajo realizado", que guarda `hechoEn` (fecha ISO de cuando se terminó). La lista muestra 💬 cantidad y la última actualización.
-- **Dinero**: selector de mes (solo visible en esta pestaña), resumen del mes (ingresos, gastos, balance, gastos por categoría) y movimientos. Categorías de gasto pedidas por el usuario: Personal, Comida, Servicios, Ocio, Proveedores, Ventas, Otros. De ingreso: Sueldo, Ventas, Servicios, Otros. Los movimientos viejos conservan su categoría aunque ya no esté en la lista.
+- **Navegación: panel lateral** con Órdenes | Clientes | Dinero | Cuenta (fijo a la izquierda desde 900 px; en el celular es un cajón que se abre con ☰). La app abre en Órdenes.
+- **Privacidad**: el usuario muestra la lista de órdenes a otras personas y no quiere que vean plata. Las listas (órdenes, clientes) nunca muestran importes; el precio de una orden solo aparece en su detalle. Lo económico va en Dinero.
+- **Cuenta**: sincronización, cambio de contraseña y respaldo (exportar/importar JSON, incluye clientes).
+- **Órdenes de trabajo** (antes "Agenda"; se siguen guardando en la colección `agenda` para no migrar datos): título, `clienteId`, fecha/hora de entrega, `nota` (detalles), `precio` + `moneda` (`UYU` o `USD`, opcionales), `area` Personal/Laboral (las nuevas por defecto Laboral; los elementos sin el campo cuentan como personales), `creada`. Se crean y editan en un `<dialog>` ("+ Nueva orden", "✏️ Editar"). Buscador por título, detalles o cliente; filtros Todas/Laboral/Personal; "Mostrar realizadas". Colores: amarillo si vence en 24 h o menos, rojo si ya venció (vencimiento = hora indicada o fin del día; se recalcula cada minuto). Tocando una orden se abre el detalle con sus datos, "Trabajo realizado" (`hechoEn`, `hechoPor`), Eliminar y las **Novedades** (`actualizaciones`: `[{id, texto, fecha ISO, autor}]`). La lista muestra 👤 cliente, 💬 cantidad de novedades y la última.
+- **Clientes** (colección `clientes`): nombre, teléfono, correo, dirección, RUT, notas. Lista con buscador y órdenes pendientes. La ficha tiene Llamar, WhatsApp (número pasado a formato internacional, Uruguay 598 por defecto), Correo, "+ Nueva orden" (con el cliente ya elegido), Editar, Eliminar (sus órdenes quedan sin cliente) y la lista de sus órdenes.
+- **Dinero**: selector de mes (solo visible en esta sección), resumen del mes (ingresos, gastos, balance, gastos por categoría) y movimientos. Categorías de gasto pedidas por el usuario: Personal, Comida, Servicios, Ocio, Proveedores, Ventas, Otros. De ingreso: Sueldo, Ventas, Servicios, Otros. Los movimientos viejos conservan su categoría aunque ya no esté en la lista.
 
-## Próximo pedido (anotado el 29/10/2026, retomar en la próxima sesión)
-El usuario pidió: **agenda de clientes, conectar clientes con los trabajos, y que cada cliente tenga un estado de cuenta** ("y otras cosas"). Todavía no se programó nada; primero cerrar las preguntas de abajo con él.
-
-Propuesta de diseño (a confirmar):
-- Pestañas: **Agenda | Clientes | Dinero | Cuenta**.
-- Colección nueva `usuarios/{espacio}/clientes/{id}`: nombre, teléfono, correo, dirección, RUT/razón social, notas, `autor`. Las reglas actuales ya cubren cualquier subcolección de `usuarios/{espacio}`, así que no hace falta tocarlas. Sumar `clientes` a `COLECCIONES` (sincronización, exportar/importar).
-- Trabajos (agenda) con `clienteId` opcional: selector de cliente al crear y en el detalle; la ficha del cliente lista sus trabajos pendientes y realizados, con la bitácora.
-- Estado de cuenta por cliente: lo que se le cobra (por ejemplo un importe por trabajo o cargos sueltos) menos lo que pagó (ingresos de Dinero con `clienteId`). Lista de movimientos con saldo.
-- Ficha del cliente: botones para llamar y abrir WhatsApp.
-- En espacios compartidos (TICs Maldonado) los clientes son del espacio: los ven y cargan todos los miembros.
-
-Preguntas a resolver con el usuario:
-1. ¿Qué datos de cada cliente? (nombre, teléfono, correo, dirección, RUT, contacto, notas…)
-2. ¿Cómo nace la deuda? ¿Cada trabajo lleva un importe a cobrar, se cargan "cargos/facturas" aparte, o ambas?
-3. ¿Moneda? ¿Solo pesos o también dólares (en Uruguay es común cobrar en USD)? Si hay dos, saldo separado por moneda.
-4. **Privacidad**: decisión previa = nada económico en Agenda. ¿El estado de cuenta va en la pestaña Clientes (que entonces muestra plata) o dentro de Dinero? Los importes de un trabajo no deben verse en la Agenda.
-5. ¿Pagos parciales? ¿Fecha de vencimiento de lo que se debe, con aviso de atrasados (rojo/amarillo como la agenda)?
-6. "Otras cosas": ¿presupuestos?, ¿enviarle al cliente su estado de cuenta (PDF o texto por WhatsApp)?, ¿buscar clientes?
+## Pendiente: estado de cuenta por cliente
+Ya existen clientes y órdenes con precio. Falta el **estado de cuenta** (lo que se le cobró menos lo que pagó, con saldo). Preguntas abiertas con el usuario:
+1. ¿Lo que se debe sale del precio de cada orden (al marcarla realizada, o al crearla) o también de cargos sueltos?
+2. ¿Cómo se registran los pagos? Propuesta: un ingreso de Dinero con `clienteId` (y opcionalmente `ordenId`); pagos parciales permitidos.
+3. Con pesos y dólares, saldo separado por moneda.
+4. ¿Dónde se ve? La ficha del cliente hoy no muestra plata (privacidad); el estado de cuenta podría ir en un bloque aparte que se despliega, o en Dinero.
+5. Otras ideas: número de orden correlativo, presupuestos, mandar el estado de cuenta al cliente por WhatsApp o PDF.
 
 ## Ideas pendientes ofrecidas (no pedidas todavía)
-Aviso de versión nueva, editar eventos y movimientos, categorías personalizables, gastos fijos mensuales, presupuesto por categoría, recordatorios con notificación, gráfico de evolución mensual.
+Aviso de versión nueva, editar movimientos, categorías personalizables, gastos fijos mensuales, presupuesto por categoría, recordatorios con notificación, gráfico de evolución mensual.

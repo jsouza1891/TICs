@@ -31,8 +31,9 @@
 
   <header class="topbar">
     <div class="marca">
+      <button class="icon menu-btn" id="btnMenu" aria-label="Abrir menú">☰</button>
       <img src="img/logo-encabezado.png" alt="TICs" height="36">
-      <h1 id="titulo">Agenda</h1>
+      <h1 id="titulo">Órdenes</h1>
     </div>
     <div class="mes" style="visibility: hidden">
       <button class="icon" id="mesPrev" aria-label="Mes anterior">‹</button>
@@ -41,29 +42,39 @@
     </div>
   </header>
 
+  <!-- Panel lateral con las secciones (en el celular se abre con ☰) -->
+  <nav class="lateral" id="lateral">
+    <img src="img/logo-encabezado.png" alt="TICs" class="lateral-logo" height="40">
+    <button data-vista="ordenes" class="activo"><span>📋</span>Órdenes</button>
+    <button data-vista="clientes"><span>👥</span>Clientes</button>
+    <button data-vista="dinero"><span>💰</span>Dinero</button>
+    <button data-vista="cuenta"><span>⚙️</span>Cuenta</button>
+  </nav>
+  <div class="velo" id="velo"></div>
+
   <main>
-    <!-- AGENDA -->
-    <section id="vista-agenda" class="vista activa">
-      <form id="formAgenda" class="formulario">
-        <div class="segmentado" role="radiogroup">
-          <label><input type="radio" name="area" value="personal" checked><span>Personal</span></label>
-          <label><input type="radio" name="area" value="laboral"><span>Laboral</span></label>
-        </div>
-        <input name="titulo" placeholder="¿Qué tenés que hacer?" required maxlength="120">
-        <div class="fila">
-          <input name="fecha" type="date" required>
-          <input name="hora" type="time">
-        </div>
-        <input name="nota" placeholder="Nota (opcional)" maxlength="300">
-        <button type="submit">Agregar a la agenda</button>
-      </form>
+    <!-- ÓRDENES DE TRABAJO (se guardan en la colección "agenda") -->
+    <section id="vista-ordenes" class="vista activa">
+      <div class="barra-acciones">
+        <input type="search" id="buscarOrden" placeholder="Buscar orden o cliente…">
+        <button id="btnNuevaOrden">+ Nueva orden</button>
+      </div>
       <div class="filtros" id="filtrosAgenda">
         <button data-area="todas" class="chip activo">Todas</button>
-        <button data-area="personal" class="chip">Personal</button>
         <button data-area="laboral" class="chip">Laboral</button>
+        <button data-area="personal" class="chip">Personal</button>
       </div>
-      <label class="check"><input type="checkbox" id="verHechos"> Mostrar completados</label>
+      <label class="check"><input type="checkbox" id="verHechos"> Mostrar realizadas</label>
       <div id="listaAgenda"></div>
+    </section>
+
+    <!-- CLIENTES -->
+    <section id="vista-clientes" class="vista">
+      <div class="barra-acciones">
+        <input type="search" id="buscarCliente" placeholder="Buscar cliente…">
+        <button id="btnNuevoCliente">+ Nuevo cliente</button>
+      </div>
+      <ul id="listaClientes" class="lista"></ul>
     </section>
 
     <!-- DINERO: resumen del mes y movimientos -->
@@ -91,7 +102,7 @@
         <input name="descripcion" placeholder="Descripción (opcional)" maxlength="120">
         <button type="submit">Guardar movimiento</button>
       </form>
-      <div class="filtros">
+      <div class="filtros" id="filtrosMov">
         <button data-filtro="todos" class="chip activo">Todos</button>
         <button data-filtro="gasto" class="chip">Gastos</button>
         <button data-filtro="ingreso" class="chip">Ingresos</button>
@@ -114,27 +125,91 @@
     </section>
   </main>
 
-  <nav class="tabs">
-    <button data-vista="agenda" class="activo"><span>📅</span>Agenda</button>
-    <button data-vista="dinero"><span>💰</span>Dinero</button>
-    <button data-vista="cuenta"><span>⚙️</span>Cuenta</button>
-  </nav>
+  <!-- Crear / editar orden -->
+  <dialog id="dlgOrden" class="detalle">
+    <div class="detalle-cab">
+      <div class="detalle-titulo" id="dlgOrdenTitulo">Nueva orden</div>
+      <button class="icon" type="button" data-cerrar aria-label="Cerrar">✕</button>
+    </div>
+    <form id="formOrden" class="formulario">
+      <div class="segmentado" role="radiogroup">
+        <label><input type="radio" name="area" value="laboral" checked><span>Laboral</span></label>
+        <label><input type="radio" name="area" value="personal"><span>Personal</span></label>
+      </div>
+      <input name="titulo" placeholder="Trabajo a realizar" required maxlength="120">
+      <label class="etiqueta-campo">Cliente
+        <select name="clienteId"></select>
+      </label>
+      <label class="etiqueta-campo">Fecha de entrega
+        <div class="fila">
+          <input name="fecha" type="date" required>
+          <input name="hora" type="time">
+        </div>
+      </label>
+      <textarea name="nota" rows="3" maxlength="2000" placeholder="Detalles del trabajo (opcional)"></textarea>
+      <label class="etiqueta-campo">Precio del servicio (opcional)
+        <div class="fila precio">
+          <select name="moneda"><option value="UYU">$ pesos</option><option value="USD">US$ dólares</option></select>
+          <input name="precio" type="number" inputmode="decimal" step="0.01" min="0" placeholder="Precio">
+        </div>
+      </label>
+      <button type="submit">Guardar orden</button>
+    </form>
+  </dialog>
 
-  <!-- Detalle de una tarea: estado y bitácora de actualizaciones -->
+  <!-- Detalle de una orden: datos, estado y novedades -->
   <dialog id="detalle" class="detalle">
     <div class="detalle-cab">
       <div class="detalle-titulo" id="detTitulo"></div>
       <button class="icon" id="detCerrar" aria-label="Cerrar">✕</button>
     </div>
-    <div class="sec" id="detInfo"></div>
+    <dl class="datos" id="detDatos"></dl>
     <label class="check"><input type="checkbox" id="detHecho"> Trabajo realizado</label>
     <div class="sec" id="detHechoEn"></div>
-    <h2>Actualizaciones</h2>
+    <div class="fila-botones acciones-detalle">
+      <button id="detEditar" class="secundario">✏️ Editar</button>
+      <button id="detEliminar" class="secundario peligro">Eliminar</button>
+    </div>
+    <h2>Novedades</h2>
     <ul id="detActualizaciones" class="bitacora"></ul>
     <form id="formActualizacion" class="formulario">
-      <textarea name="texto" rows="3" maxlength="1000" placeholder="Agregar comentario o avance…" required></textarea>
-      <button type="submit">Agregar actualización</button>
+      <textarea name="texto" rows="3" maxlength="1000" placeholder="Agregar novedad o avance…" required></textarea>
+      <button type="submit">Agregar novedad</button>
     </form>
+  </dialog>
+
+  <!-- Crear / editar cliente -->
+  <dialog id="dlgCliente" class="detalle">
+    <div class="detalle-cab">
+      <div class="detalle-titulo" id="dlgClienteTitulo">Nuevo cliente</div>
+      <button class="icon" type="button" data-cerrar aria-label="Cerrar">✕</button>
+    </div>
+    <form id="formCliente" class="formulario">
+      <input name="nombre" placeholder="Nombre o empresa" required maxlength="120">
+      <input name="telefono" type="tel" placeholder="Teléfono (ej. 099 123 456)" maxlength="40">
+      <input name="email" type="email" placeholder="Correo (opcional)" maxlength="120">
+      <input name="direccion" placeholder="Dirección (opcional)" maxlength="200">
+      <input name="rut" placeholder="RUT / razón social (opcional)" maxlength="120">
+      <textarea name="notas" rows="3" maxlength="1000" placeholder="Notas (opcional)"></textarea>
+      <button type="submit">Guardar cliente</button>
+    </form>
+  </dialog>
+
+  <!-- Ficha de cliente: datos, contacto y sus órdenes -->
+  <dialog id="dlgVerCliente" class="detalle">
+    <div class="detalle-cab">
+      <div class="detalle-titulo" id="cliNombre"></div>
+      <button class="icon" type="button" data-cerrar aria-label="Cerrar">✕</button>
+    </div>
+    <dl class="datos" id="cliDatos"></dl>
+    <div class="fila-botones" id="cliContacto"></div>
+    <div class="fila-botones acciones-detalle">
+      <button id="cliNuevaOrden">+ Nueva orden</button>
+      <button id="cliEditar" class="secundario">✏️ Editar</button>
+      <button id="cliEliminar" class="secundario peligro">Eliminar</button>
+    </div>
+    <h2>Órdenes</h2>
+    <ul id="cliOrdenes" class="lista"></ul>
   </dialog>
 
   <!-- Cambio de contraseña para usuarios con contraseña -->

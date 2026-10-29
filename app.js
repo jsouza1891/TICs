@@ -10,16 +10,19 @@ const CATEGORIAS = {
 function cargar() {
   try {
     const d = JSON.parse(localStorage.getItem(CLAVE));
-    if (d && Array.isArray(d.agenda) && Array.isArray(d.movimientos)) return d;
+    if (d && Array.isArray(d.agenda) && Array.isArray(d.movimientos)) {
+      if (!Array.isArray(d.clientes)) d.clientes = [];
+      return d;
+    }
   } catch (e) { /* almacenamiento no disponible o dañado */ }
-  return { agenda: [], movimientos: [] };
+  return { agenda: [], movimientos: [], clientes: [] };
 }
 function guardar() {
   try { localStorage.setItem(CLAVE, JSON.stringify(datos)); }
   catch (e) { aviso('No se pudo guardar en este dispositivo'); }
 }
 const datos = cargar();
-const COLECCIONES = ['agenda', 'movimientos'];
+const COLECCIONES = ['agenda', 'movimientos', 'clientes'];
 const nuevoId = () => Date.now().toString(36) + Math.random().toString(36).slice(2, 7);
 
 // ---------- Utilidades ----------
@@ -47,19 +50,25 @@ function aviso(texto) {
 const ahora = new Date();
 let mesActual = { anio: ahora.getFullYear(), mes: ahora.getMonth() }; // mes 0-11
 let filtroMov = 'todos';
-const TITULOS = { agenda: 'Agenda', dinero: 'Dinero', cuenta: 'Cuenta' };
+const TITULOS = { ordenes: 'Órdenes', clientes: 'Clientes', dinero: 'Dinero', cuenta: 'Cuenta' };
 
 const claveMes = () => `${mesActual.anio}-${pad(mesActual.mes + 1)}`;
 const enMes = (iso) => iso.startsWith(claveMes());
 
-// ---------- Navegación ----------
-$$('.tabs button').forEach((b) => b.addEventListener('click', () => {
-  $$('.tabs button').forEach((x) => x.classList.toggle('activo', x === b));
-  $$('.vista').forEach((v) => v.classList.toggle('activa', v.id === 'vista-' + b.dataset.vista));
-  $('#titulo').textContent = TITULOS[b.dataset.vista];
+// ---------- Navegación (panel lateral; en el celular se abre con ☰) ----------
+function irA(vista) {
+  $$('.lateral [data-vista]').forEach((x) => x.classList.toggle('activo', x.dataset.vista === vista));
+  $$('.vista').forEach((v) => v.classList.toggle('activa', v.id === 'vista-' + vista));
+  $('#titulo').textContent = TITULOS[vista];
   // el selector de mes solo aplica a la parte económica
-  $('.mes').style.visibility = b.dataset.vista === 'dinero' ? 'visible' : 'hidden';
-}));
+  $('.mes').style.visibility = vista === 'dinero' ? 'visible' : 'hidden';
+  document.body.classList.remove('menu-abierto');
+}
+$$('.lateral [data-vista]').forEach((b) => b.addEventListener('click', () => irA(b.dataset.vista)));
+$('#btnMenu').addEventListener('click', () => document.body.classList.toggle('menu-abierto'));
+$('#velo').addEventListener('click', () => document.body.classList.remove('menu-abierto'));
+// botón ✕ genérico de los diálogos
+$$('dialog [data-cerrar]').forEach((b) => b.addEventListener('click', () => b.closest('dialog').close()));
 
 function cambiarMes(delta) {
   const d = new Date(mesActual.anio, mesActual.mes + delta, 1);
@@ -69,25 +78,18 @@ function cambiarMes(delta) {
 $('#mesPrev').addEventListener('click', () => cambiarMes(-1));
 $('#mesNext').addEventListener('click', () => cambiarMes(1));
 
-// ---------- Agenda ----------
-const formAgenda = $('#formAgenda');
-formAgenda.fecha.value = hoyISO();
-formAgenda.addEventListener('submit', (e) => {
-  e.preventDefault();
-  const f = formAgenda;
-  agregar('agenda', {
-    id: nuevoId(),
-    titulo: f.titulo.value.trim(),
-    fecha: f.fecha.value,
-    hora: f.hora.value,
-    nota: f.nota.value.trim(),
-    area: f.area.value,
-    hecho: false,
-  });
-  f.titulo.value = ''; f.hora.value = ''; f.nota.value = '';
-  aviso('Evento agregado');
-});
+// ---------- Órdenes de trabajo ----------
+// Se guardan en la colección "agenda" (antes era una agenda de tareas): titulo, fecha/hora de entrega,
+// nota (detalles), area, clienteId, precio/moneda, hecho/hechoEn y actualizaciones (novedades).
+// El precio solo se muestra en el detalle, nunca en las listas: la lista se puede mostrar a otros.
+const MONEDAS = { UYU: '$', USD: 'US$' };
+const fmtPrecio = (n, moneda) => `${MONEDAS[moneda] || '$'} ${n.toLocaleString('es-UY', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+const clientePorId = (id) => (id ? datos.clientes.find((c) => c.id === id) : null);
+const ordenPorId = (id) => datos.agenda.find((x) => x.id === id);
+const normalizar = (t) => (t || '').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '');
+
 $('#verHechos').addEventListener('change', render);
+$('#buscarOrden').addEventListener('input', renderAgenda);
 
 let filtroArea = 'todas';
 $$('#filtrosAgenda .chip').forEach((c) => c.addEventListener('click', () => {
@@ -97,6 +99,7 @@ $$('#filtrosAgenda .chip').forEach((c) => c.addEventListener('click', () => {
 }));
 // los eventos cargados antes de existir las dos agendas cuentan como personales
 const areaDe = (ev) => ev.area || 'personal';
+const etiquetaArea = (ev) => `<span class="etiqueta ${areaDe(ev)}">${areaDe(ev) === 'laboral' ? 'Laboral' : 'Personal'}</span>`;
 
 const ordenAgenda = (a, b) => (a.fecha + (a.hora || '99')).localeCompare(b.fecha + (b.hora || '99'));
 
@@ -116,26 +119,28 @@ function urgencia(ev) {
 }
 
 function itemAgenda(ev, conFecha) {
-  const sec = [conFecha ? fmtCorto(ev.fecha) : '', ev.hora, ev.nota, porOtro(ev.autor) && `por ${ev.autor}`]
+  const cliente = clientePorId(ev.clienteId);
+  const sec = [cliente && `👤 ${cliente.nombre}`, conFecha ? fmtCorto(ev.fecha) : '', ev.hora, porOtro(ev.autor) && `por ${ev.autor}`]
     .filter(Boolean).map(escapar).join(' · ');
-  const area = areaDe(ev);
   const acts = ev.actualizaciones || [];
   const ultima = acts.length
     ? `<div class="sec ultima">💬 ${acts.length} · ${escapar(acts[acts.length - 1].texto)}</div>` : '';
   return `<li class="item ${ev.hecho ? 'hecho' : ''} ${urgencia(ev)}" data-id="${ev.id}">
-    <input type="checkbox" class="toggle" ${ev.hecho ? 'checked' : ''} aria-label="Marcar como hecho">
-    <div class="info abrir-detalle"><div class="principal">${escapar(ev.titulo)} <span class="etiqueta ${area}">${area === 'laboral' ? 'Laboral' : 'Personal'}</span></div>${sec ? `<div class="sec">${sec}</div>` : ''}${ultima}</div>
-    <button class="borrar" data-tipo="agenda" aria-label="Eliminar">✕</button>
+    <input type="checkbox" class="toggle" ${ev.hecho ? 'checked' : ''} aria-label="Marcar como realizada">
+    <div class="info abrir-detalle"><div class="principal">${escapar(ev.titulo)} ${etiquetaArea(ev)}</div>${sec ? `<div class="sec">${sec}</div>` : ''}${ultima}</div>
   </li>`;
 }
 
 function renderAgenda() {
   const verHechos = $('#verHechos').checked;
+  const busqueda = normalizar($('#buscarOrden').value.trim());
+  const coincide = (e) => !busqueda
+    || normalizar([e.titulo, e.nota, (clientePorId(e.clienteId) || {}).nombre].join(' ')).includes(busqueda);
   const eventos = datos.agenda
-    .filter((e) => (verHechos || !e.hecho) && (filtroArea === 'todas' || areaDe(e) === filtroArea))
+    .filter((e) => (verHechos || !e.hecho) && (filtroArea === 'todas' || areaDe(e) === filtroArea) && coincide(e))
     .sort(ordenAgenda);
   if (!eventos.length) {
-    $('#listaAgenda').innerHTML = '<p class="vacio">No hay eventos pendientes 🎉</p>';
+    $('#listaAgenda').innerHTML = `<p class="vacio">${busqueda ? 'No hay órdenes que coincidan' : 'No hay órdenes pendientes 🎉'}</p>`;
     return;
   }
   const hoy = hoyISO();
@@ -151,6 +156,146 @@ function renderAgenda() {
     html += itemAgenda(ev, false);
   }
   $('#listaAgenda').innerHTML = html + '</ul>';
+}
+
+// Formulario de orden (nueva o edición)
+let ordenEditando = null;
+function opcionesClientes(seleccionado) {
+  const clientes = [...datos.clientes].sort((a, b) => a.nombre.localeCompare(b.nombre, 'es'));
+  return '<option value="">Sin cliente</option>' + clientes
+    .map((c) => `<option value="${c.id}" ${c.id === seleccionado ? 'selected' : ''}>${escapar(c.nombre)}</option>`).join('');
+}
+function abrirFormOrden(orden, clienteId) {
+  ordenEditando = orden ? orden.id : null;
+  const f = $('#formOrden');
+  f.reset();
+  $('#dlgOrdenTitulo').textContent = orden ? 'Editar orden' : 'Nueva orden';
+  f.clienteId.innerHTML = opcionesClientes(orden ? orden.clienteId : clienteId);
+  f.titulo.value = orden ? orden.titulo : '';
+  f.fecha.value = orden ? orden.fecha : hoyISO();
+  f.hora.value = orden ? orden.hora || '' : '';
+  f.nota.value = orden ? orden.nota || '' : '';
+  f.precio.value = orden && orden.precio != null ? orden.precio : '';
+  f.moneda.value = (orden && orden.moneda) || 'UYU';
+  f.area.value = orden ? areaDe(orden) : 'laboral';
+  $('#dlgOrden').showModal();
+}
+$('#btnNuevaOrden').addEventListener('click', () => abrirFormOrden(null));
+$('#formOrden').addEventListener('submit', (e) => {
+  e.preventDefault();
+  const f = e.target;
+  const precio = f.precio.value === '' ? null : Math.round(parseFloat(f.precio.value) * 100) / 100;
+  const campos = {
+    titulo: f.titulo.value.trim(),
+    clienteId: f.clienteId.value || null,
+    fecha: f.fecha.value,
+    hora: f.hora.value,
+    nota: f.nota.value.trim(),
+    precio: Number.isFinite(precio) ? precio : null,
+    moneda: f.moneda.value,
+    area: f.area.value,
+  };
+  if (ordenEditando) {
+    actualizar('agenda', ordenEditando, campos);
+    aviso('Orden actualizada');
+  } else {
+    agregar('agenda', { id: nuevoId(), ...campos, hecho: false, creada: new Date().toISOString() });
+    aviso('Orden creada');
+  }
+  $('#dlgOrden').close();
+});
+
+// ---------- Clientes ----------
+$('#buscarCliente').addEventListener('input', renderClientes);
+const pendientesDe = (clienteId) => datos.agenda.filter((o) => o.clienteId === clienteId && !o.hecho).length;
+
+function renderClientes() {
+  const busqueda = normalizar($('#buscarCliente').value.trim());
+  const lista = datos.clientes
+    .filter((c) => !busqueda || normalizar([c.nombre, c.telefono, c.email, c.rut, c.direccion].join(' ')).includes(busqueda))
+    .sort((a, b) => a.nombre.localeCompare(b.nombre, 'es'));
+  $('#listaClientes').innerHTML = lista.length
+    ? lista.map((c) => {
+      const pend = pendientesDe(c.id);
+      const sec = [c.telefono, pend && `${pend} ${pend === 1 ? 'orden pendiente' : 'órdenes pendientes'}`].filter(Boolean).map(escapar).join(' · ');
+      return `<li class="item" data-id="${c.id}">
+        <div class="info abrir-cliente"><div class="principal">${escapar(c.nombre)}</div>${sec ? `<div class="sec">${sec}</div>` : ''}</div>
+      </li>`;
+    }).join('')
+    : `<li class="vacio">${busqueda ? 'No hay clientes que coincidan' : 'Todavía no hay clientes. Tocá "+ Nuevo cliente".'}</li>`;
+}
+
+let clienteEditando = null;
+function abrirFormCliente(cliente) {
+  clienteEditando = cliente ? cliente.id : null;
+  const f = $('#formCliente');
+  f.reset();
+  $('#dlgClienteTitulo').textContent = cliente ? 'Editar cliente' : 'Nuevo cliente';
+  ['nombre', 'telefono', 'email', 'direccion', 'rut', 'notas'].forEach((k) => { f[k].value = cliente ? cliente[k] || '' : ''; });
+  $('#dlgCliente').showModal();
+}
+$('#btnNuevoCliente').addEventListener('click', () => abrirFormCliente(null));
+$('#formCliente').addEventListener('submit', (e) => {
+  e.preventDefault();
+  const f = e.target;
+  const campos = {};
+  ['nombre', 'telefono', 'email', 'direccion', 'rut', 'notas'].forEach((k) => { campos[k] = f[k].value.trim(); });
+  if (clienteEditando) {
+    actualizar('clientes', clienteEditando, campos);
+    aviso('Cliente actualizado');
+  } else {
+    agregar('clientes', { id: nuevoId(), ...campos, creado: new Date().toISOString() });
+    aviso('Cliente guardado');
+  }
+  $('#dlgCliente').close();
+});
+
+// WhatsApp necesita el número internacional: 099 123 456 → 59899123456 (Uruguay por defecto)
+function numeroWhatsApp(tel) {
+  let d = (tel || '').replace(/\D/g, '');
+  if (d.startsWith('00')) d = d.slice(2);
+  else if (d.startsWith('0')) d = '598' + d.slice(1);
+  else if (d.length === 8) d = '598' + d;
+  return d;
+}
+
+let clienteVerId = null;
+function abrirCliente(id) {
+  clienteVerId = id;
+  renderCliente();
+  $('#dlgVerCliente').showModal();
+}
+$('#dlgVerCliente').addEventListener('close', () => { clienteVerId = null; });
+$('#cliEditar').addEventListener('click', () => abrirFormCliente(clientePorId(clienteVerId)));
+$('#cliNuevaOrden').addEventListener('click', () => abrirFormOrden(null, clienteVerId));
+$('#cliEliminar').addEventListener('click', () => {
+  const c = clientePorId(clienteVerId);
+  if (!c || !confirm(`¿Eliminar a ${c.nombre}? Sus órdenes no se borran, quedan sin cliente.`)) return;
+  eliminar('clientes', c.id);
+  $('#dlgVerCliente').close();
+});
+
+// Lista de datos (dt/dd) sin campos vacíos
+const filasDatos = (pares) => pares.filter(([, v]) => v)
+  .map(([k, v]) => `<dt>${k}</dt><dd>${escapar(v)}</dd>`).join('');
+
+function renderCliente() {
+  if (!clienteVerId) return;
+  const c = clientePorId(clienteVerId);
+  if (!c) { $('#dlgVerCliente').close(); return; }
+  $('#cliNombre').textContent = c.nombre;
+  $('#cliDatos').innerHTML = filasDatos([['Teléfono', c.telefono], ['Correo', c.email], ['Dirección', c.direccion], ['RUT', c.rut], ['Notas', c.notas]]);
+  const wa = numeroWhatsApp(c.telefono);
+  $('#cliContacto').innerHTML = [
+    c.telefono && `<a class="boton secundario" href="tel:${escapar(c.telefono.replace(/[^\d+]/g, ''))}">📞 Llamar</a>`,
+    wa && `<a class="boton secundario" href="https://wa.me/${wa}" target="_blank" rel="noopener">💬 WhatsApp</a>`,
+    c.email && `<a class="boton secundario" href="mailto:${escapar(c.email)}">✉️ Correo</a>`,
+  ].filter(Boolean).join('');
+  const ordenes = datos.agenda.filter((o) => o.clienteId === c.id)
+    .sort((a, b) => (a.hecho - b.hecho) || ordenAgenda(a, b));
+  $('#cliOrdenes').innerHTML = ordenes.length
+    ? ordenes.map((o) => itemAgenda(o, true)).join('')
+    : '<li class="vacio">Sin órdenes todavía</li>';
 }
 
 // ---------- Movimientos ----------
@@ -181,9 +326,9 @@ formMov.addEventListener('submit', (e) => {
   aviso(f.tipo.value === 'gasto' ? 'Gasto guardado' : 'Ingreso guardado');
 });
 
-$$('.filtros .chip').forEach((c) => c.addEventListener('click', () => {
+$$('#filtrosMov .chip').forEach((c) => c.addEventListener('click', () => {
   filtroMov = c.dataset.filtro;
-  $$('.filtros .chip').forEach((x) => x.classList.toggle('activo', x === c));
+  $$('#filtrosMov .chip').forEach((x) => x.classList.toggle('activo', x === c));
   renderMovimientos();
 }));
 
@@ -231,9 +376,10 @@ function renderResumen() {
 document.addEventListener('click', (e) => {
   const btn = e.target.closest('.borrar');
   if (!btn) return;
+  if (btn.classList.contains('borrar-act')) return; // las novedades se borran desde el detalle
   const id = btn.closest('[data-id]').dataset.id;
-  if (!confirm('¿Eliminar este elemento?')) return;
-  eliminar(btn.dataset.tipo === 'agenda' ? 'agenda' : 'movimientos', id);
+  if (!confirm('¿Eliminar este movimiento?')) return;
+  eliminar('movimientos', id);
 });
 document.addEventListener('change', (e) => {
   if (!e.target.classList.contains('toggle')) return;
@@ -253,10 +399,21 @@ const eventoDetalle = () => datos.agenda.find((x) => x.id === detalleId);
 
 document.addEventListener('click', (e) => {
   const info = e.target.closest('.abrir-detalle');
-  if (!info) return;
-  detalleId = info.closest('[data-id]').dataset.id;
-  renderDetalle();
-  $('#detalle').showModal();
+  if (info) {
+    detalleId = info.closest('[data-id]').dataset.id;
+    renderDetalle();
+    $('#detalle').showModal();
+    return;
+  }
+  const cli = e.target.closest('.abrir-cliente');
+  if (cli) abrirCliente(cli.closest('[data-id]').dataset.id);
+});
+$('#detEditar').addEventListener('click', () => abrirFormOrden(eventoDetalle()));
+$('#detEliminar').addEventListener('click', () => {
+  const ev = eventoDetalle();
+  if (!ev || !confirm(`¿Eliminar la orden "${ev.titulo}"? No se puede deshacer.`)) return;
+  eliminar('agenda', ev.id);
+  $('#detalle').close();
 });
 $('#detCerrar').addEventListener('click', () => $('#detalle').close());
 $('#detalle').addEventListener('close', () => { detalleId = null; });
@@ -277,7 +434,7 @@ $('#formActualizacion').addEventListener('submit', (e) => {
 $('#detActualizaciones').addEventListener('click', (e) => {
   const btn = e.target.closest('.borrar-act');
   const ev = eventoDetalle();
-  if (!btn || !ev || !confirm('¿Eliminar esta actualización?')) return;
+  if (!btn || !ev || !confirm('¿Eliminar esta novedad?')) return;
   actualizar('agenda', ev.id, { actualizaciones: (ev.actualizaciones || []).filter((a) => a.id !== btn.dataset.id) });
 });
 
@@ -286,10 +443,15 @@ function renderDetalle() {
   if (!detalleId) return;
   const ev = eventoDetalle();
   if (!ev) { $('#detalle').close(); return; }
-  const area = areaDe(ev);
-  $('#detTitulo').innerHTML = `${escapar(ev.titulo)} <span class="etiqueta ${area}">${area === 'laboral' ? 'Laboral' : 'Personal'}</span>`;
-  const cargo = porOtro(ev.autor);
-  $('#detInfo').textContent = [fmtDia(ev.fecha), ev.hora, ev.nota, cargo && `cargado por ${cargo}`].filter(Boolean).join(' · ');
+  $('#detTitulo').innerHTML = `${escapar(ev.titulo)} ${etiquetaArea(ev)}`;
+  const cliente = clientePorId(ev.clienteId);
+  $('#detDatos').innerHTML = filasDatos([
+    ['Cliente', cliente && cliente.nombre],
+    ['Entrega', [fmtDia(ev.fecha), ev.hora].filter(Boolean).join(' · ')],
+    ['Detalles', ev.nota],
+    ['Precio', ev.precio != null ? fmtPrecio(ev.precio, ev.moneda) : ''],
+    ['Creada', [ev.creada && fmtMomento(ev.creada), porOtro(ev.autor) && `por ${ev.autor}`].filter(Boolean).join(' ')],
+  ]);
   $('#detHecho').checked = !!ev.hecho;
   $('#detHechoEn').textContent = ev.hecho && ev.hechoEn
     ? `Realizado el ${fmtMomento(ev.hechoEn)}${porOtro(ev.hechoPor) ? ` por ${ev.hechoPor}` : ''}` : '';
@@ -300,7 +462,7 @@ function renderDetalle() {
           <button class="borrar borrar-act" data-id="${a.id}" aria-label="Eliminar actualización">✕</button></div>
         <div class="act-texto">${escapar(a.texto)}</div>
       </li>`).join('')
-    : '<li class="vacio">Todavía no hay actualizaciones</li>';
+    : '<li class="vacio">Todavía no hay novedades</li>';
 }
 
 // ---------- Respaldo ----------
@@ -318,6 +480,7 @@ $('#inputImportar').addEventListener('change', async (e) => {
   try {
     const d = JSON.parse(await archivo.text());
     if (!Array.isArray(d.agenda) || !Array.isArray(d.movimientos)) throw new Error('formato');
+    if (!Array.isArray(d.clientes)) d.clientes = []; // respaldos de antes de existir los clientes
     if (!confirm('Esto reemplaza los datos actuales. ¿Continuar?')) return;
     // los respaldos viejos o editados a mano pueden traer elementos sin id
     COLECCIONES.forEach((col) => d[col].forEach((x) => { x.id = x.id || nuevoId(); }));
@@ -587,8 +750,10 @@ function render() {
   $('#mesLabel').textContent = mes.charAt(0).toUpperCase() + mes.slice(1);
   renderResumen();
   renderAgenda();
+  renderClientes();
   renderMovimientos();
   renderDetalle();
+  renderCliente();
 }
 render();
 // los colores de vencimiento dependen de la hora: se recalculan cada minuto
