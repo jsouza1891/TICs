@@ -59,11 +59,6 @@
         <input type="search" id="buscarOrden" placeholder="Buscar orden o cliente…">
         <button id="btnNuevaOrden">+ Nueva orden</button>
       </div>
-      <div class="filtros" id="filtrosAgenda">
-        <button data-area="todas" class="chip activo">Todas</button>
-        <button data-area="laboral" class="chip">Laboral</button>
-        <button data-area="personal" class="chip">Personal</button>
-      </div>
       <label class="check"><input type="checkbox" id="verHechos"> Mostrar realizadas</label>
       <div id="listaAgenda"></div>
     </section>
@@ -132,10 +127,6 @@
       <button class="icon" type="button" data-cerrar aria-label="Cerrar">✕</button>
     </div>
     <form id="formOrden" class="formulario">
-      <div class="segmentado" role="radiogroup">
-        <label><input type="radio" name="area" value="laboral" checked><span>Laboral</span></label>
-        <label><input type="radio" name="area" value="personal"><span>Personal</span></label>
-      </div>
       <input name="titulo" placeholder="Trabajo a realizar" required maxlength="120">
       <label class="etiqueta-campo">Cliente
         <select name="clienteId"></select>

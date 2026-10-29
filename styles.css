@@ -108,9 +108,6 @@ input, select {
 .item.por-vencer { background: var(--amarillo-bg); border-color: var(--amarillo); }
 .item.vencido { background: var(--rojo-bg); border-color: var(--gasto); }
 .item.vencido .sec { color: var(--gasto); }
-.etiqueta { font-size: .7rem; font-weight: 600; padding: 2px 7px; border-radius: 999px; vertical-align: middle; white-space: nowrap; }
-.etiqueta.personal { background: var(--personal-bg); color: var(--personal); }
-.etiqueta.laboral { background: var(--laboral-bg); color: var(--laboral); }
 .item.hecho .principal { text-decoration: line-through; color: var(--muted); }
 .item input[type=checkbox] { width: 22px; height: 22px; flex: none; }
 .abrir-detalle { cursor: pointer; }

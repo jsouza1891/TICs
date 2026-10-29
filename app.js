@@ -80,7 +80,7 @@ $('#mesNext').addEventListener('click', () => cambiarMes(1));
 
 // ---------- Órdenes de trabajo ----------
 // Se guardan en la colección "agenda" (antes era una agenda de tareas): titulo, fecha/hora de entrega,
-// nota (detalles), area, clienteId, precio/moneda, hecho/hechoEn y actualizaciones (novedades).
+// nota (detalles), clienteId, precio/moneda, hecho/hechoEn y actualizaciones (novedades).
 // El precio solo se muestra en el detalle, nunca en las listas: la lista se puede mostrar a otros.
 const MONEDAS = { UYU: '$', USD: 'US$' };
 const fmtPrecio = (n, moneda) => `${MONEDAS[moneda] || '$'} ${n.toLocaleString('es-UY', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
@@ -91,15 +91,7 @@ const normalizar = (t) => (t || '').toLowerCase().normalize('NFD').replace(/[̀-
 $('#verHechos').addEventListener('change', render);
 $('#buscarOrden').addEventListener('input', renderAgenda);
 
-let filtroArea = 'todas';
-$$('#filtrosAgenda .chip').forEach((c) => c.addEventListener('click', () => {
-  filtroArea = c.dataset.area;
-  $$('#filtrosAgenda .chip').forEach((x) => x.classList.toggle('activo', x === c));
-  renderAgenda();
-}));
-// los eventos cargados antes de existir las dos agendas cuentan como personales
-const areaDe = (ev) => ev.area || 'personal';
-const etiquetaArea = (ev) => `<span class="etiqueta ${areaDe(ev)}">${areaDe(ev) === 'laboral' ? 'Laboral' : 'Personal'}</span>`;
+// Las órdenes son generales: el campo viejo `area` (Personal/Laboral) quedó en los datos pero ya no se usa
 
 const ordenAgenda = (a, b) => (a.fecha + (a.hora || '99')).localeCompare(b.fecha + (b.hora || '99'));
 
@@ -127,7 +119,7 @@ function itemAgenda(ev, conFecha) {
     ? `<div class="sec ultima">💬 ${acts.length} · ${escapar(acts[acts.length - 1].texto)}</div>` : '';
   return `<li class="item ${ev.hecho ? 'hecho' : ''} ${urgencia(ev)}" data-id="${ev.id}">
     <input type="checkbox" class="toggle" ${ev.hecho ? 'checked' : ''} aria-label="Marcar como realizada">
-    <div class="info abrir-detalle"><div class="principal">${escapar(ev.titulo)} ${etiquetaArea(ev)}</div>${sec ? `<div class="sec">${sec}</div>` : ''}${ultima}</div>
+    <div class="info abrir-detalle"><div class="principal">${escapar(ev.titulo)}</div>${sec ? `<div class="sec">${sec}</div>` : ''}${ultima}</div>
   </li>`;
 }
 
@@ -137,7 +129,7 @@ function renderAgenda() {
   const coincide = (e) => !busqueda
     || normalizar([e.titulo, e.nota, (clientePorId(e.clienteId) || {}).nombre].join(' ')).includes(busqueda);
   const eventos = datos.agenda
-    .filter((e) => (verHechos || !e.hecho) && (filtroArea === 'todas' || areaDe(e) === filtroArea) && coincide(e))
+    .filter((e) => (verHechos || !e.hecho) && coincide(e))
     .sort(ordenAgenda);
   if (!eventos.length) {
     $('#listaAgenda').innerHTML = `<p class="vacio">${busqueda ? 'No hay órdenes que coincidan' : 'No hay órdenes pendientes 🎉'}</p>`;
@@ -177,7 +169,6 @@ function abrirFormOrden(orden, clienteId) {
   f.nota.value = orden ? orden.nota || '' : '';
   f.precio.value = orden && orden.precio != null ? orden.precio : '';
   f.moneda.value = (orden && orden.moneda) || 'UYU';
-  f.area.value = orden ? areaDe(orden) : 'laboral';
   $('#dlgOrden').showModal();
 }
 $('#btnNuevaOrden').addEventListener('click', () => abrirFormOrden(null));
@@ -193,7 +184,6 @@ $('#formOrden').addEventListener('submit', (e) => {
     nota: f.nota.value.trim(),
     precio: Number.isFinite(precio) ? precio : null,
     moneda: f.moneda.value,
-    area: f.area.value,
   };
   if (ordenEditando) {
     actualizar('agenda', ordenEditando, campos);
@@ -443,7 +433,7 @@ function renderDetalle() {
   if (!detalleId) return;
   const ev = eventoDetalle();
   if (!ev) { $('#detalle').close(); return; }
-  $('#detTitulo').innerHTML = `${escapar(ev.titulo)} ${etiquetaArea(ev)}`;
+  $('#detTitulo').textContent = ev.titulo;
   const cliente = clientePorId(ev.clienteId);
   $('#detDatos').innerHTML = filasDatos([
     ['Cliente', cliente && cliente.nombre],
