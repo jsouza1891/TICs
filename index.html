@@ -33,13 +33,17 @@
     <div class="marca">
       <button class="icon menu-btn" id="btnMenu" aria-label="Abrir menú">☰</button>
       <img src="img/logo-encabezado.png" alt="TICs" height="36">
-      <h1 id="titulo">Órdenes</h1>
+      <div class="titulos">
+        <h1 id="titulo">Órdenes</h1>
+        <span class="espacio-badge" id="espacioBadge" hidden></span>
+      </div>
     </div>
-    <div class="mes" style="visibility: hidden">
+    <div class="mes" style="display: none">
       <button class="icon" id="mesPrev" aria-label="Mes anterior">‹</button>
       <span id="mesLabel"></span>
       <button class="icon" id="mesNext" aria-label="Mes siguiente">›</button>
     </div>
+    <div class="espacio-barra" id="espacioBarra" hidden></div>
   </header>
 
   <!-- Panel lateral con las secciones (en el celular se abre con ☰) -->

@@ -2,7 +2,7 @@
 
 const CLAVE = 'asistente-personal-v1';
 // Se muestra en Cuenta para saber qué versión está usando cada dispositivo: actualizarla al publicar
-const VERSION = '30/10/2026 b';
+const VERSION = '30/10/2026 c';
 const CATEGORIAS = {
   gasto: ['Personal', 'Comida', 'Servicios', 'Ocio', 'Proveedores', 'Ventas', 'Otros'],
   ingreso: ['Sueldo', 'Ventas', 'Servicios', 'Otros'],
@@ -67,7 +67,7 @@ function irA(vista) {
   $$('.vista').forEach((v) => v.classList.toggle('activa', v.id === 'vista-' + vista));
   $('#titulo').textContent = TITULOS[vista];
   // el selector de mes solo aplica a la parte económica
-  $('.mes').style.visibility = vista === 'dinero' ? 'visible' : 'hidden';
+  $('.mes').style.display = vista === 'dinero' ? '' : 'none';
   document.body.classList.remove('menu-abierto');
 }
 $$('.lateral [data-vista]').forEach((b) => b.addEventListener('click', () => irA(b.dataset.vista)));
@@ -763,7 +763,19 @@ function cerrarSesion() {
   });
 }
 
+// En un espacio compartido se muestra su nombre arriba de todo, para no cargar datos en la cuenta equivocada
+function renderEspacio() {
+  const compartido = !!(usuario && espacio && espacio !== usuario.uid);
+  document.body.classList.toggle('espacio-compartido', compartido);
+  // etiqueta junto al título en pantallas grandes, franja de ancho completo en el celular (ver CSS)
+  ['#espacioBadge', '#espacioBarra'].forEach((sel) => {
+    $(sel).hidden = !compartido;
+    $(sel).textContent = compartido ? `👥 ${nombreEspacio || 'Espacio compartido'}` : '';
+  });
+}
+
 function renderCuenta() {
+  renderEspacio();
   const el = $('#cuenta');
   if (usuario) {
     const estado = errorSyncCodigo
