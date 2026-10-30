@@ -1,6 +1,8 @@
 'use strict';
 
 const CLAVE = 'asistente-personal-v1';
+// Se muestra en Cuenta para saber qué versión está usando cada dispositivo: actualizarla al publicar
+const VERSION = '30/10/2026';
 const CATEGORIAS = {
   gasto: ['Personal', 'Comida', 'Servicios', 'Ocio', 'Proveedores', 'Ventas', 'Otros'],
   ingreso: ['Sueldo', 'Ventas', 'Servicios', 'Otros'],
@@ -804,4 +806,5 @@ function render() {
   renderCliente();
   renderComercio();
 }
+$('#version').textContent = VERSION;
 // El primer render y el arranque están al final de comercio.js, que se carga después de este archivo.

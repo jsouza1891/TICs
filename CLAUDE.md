@@ -4,7 +4,8 @@ App personal de agenda, gastos e ingresos. El usuario la usa a diario en un celu
 
 ## Cómo está hecha
 - HTML, CSS y JavaScript puro, sin build ni dependencias: `index.html`, `styles.css`, `app.js` (datos, sincronización, login, órdenes, clientes, Dinero) y `comercio.js` (cotización, productos, proveedores, compras, ventas, cobros/pagos y estados de cuenta). `comercio.js` se carga después de `app.js` y tiene al final el primer `render()` y el arranque.
-- `sw.js`: service worker con estrategia "red primero" para que funcione sin conexión. Solo intercepta archivos propios y el SDK de Firebase (www.gstatic.com); nunca las conexiones de Firestore ni del login. Al cambiar la lista de archivos, subir la versión de `CACHE`.
+- `sw.js`: service worker con estrategia "red primero" para que funcione sin conexión. Solo intercepta archivos propios y el SDK de Firebase (www.gstatic.com); nunca las conexiones de Firestore ni del login. Al cambiar la lista de archivos, subir la versión de `CACHE`. Los archivos propios se piden con `cache: 'no-cache'` (y el precache con `'reload'`) porque la caché HTTP de Chrome dejó al celular con una versión vieja aunque reinstalara la app.
+- **Al publicar, actualizar `VERSION` en `app.js`** (fecha): se ve en Cuenta y sirve para confirmar qué versión tiene cada dispositivo. Si un celular queda trabado en una versión vieja: Chrome → ⋮ → Configuración → Configuración de sitios → Todos los sitios → app.tics.com.uy → Borrar y restablecer (los datos están en Firebase, no se pierden).
 - Montos con formato `es-UY` ($1.500,00). Fechas guardadas como `YYYY-MM-DD` en hora local.
 
 ## Publicación
