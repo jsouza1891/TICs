@@ -1,8 +1,9 @@
 'use strict';
 
 const CLAVE = 'asistente-personal-v1';
-// Se muestra en Cuenta para saber qué versión está usando cada dispositivo: actualizarla al publicar
-const VERSION = '30/10/2026 c';
+// Se muestra en Cuenta para saber qué versión usa cada dispositivo.
+// Numeración pedida por el usuario: 1.0, 1.1, 1.2… (sumar 0.1 en cada publicación con cambios en la app)
+const VERSION = '1.0';
 const CATEGORIAS = {
   gasto: ['Personal', 'Comida', 'Servicios', 'Ocio', 'Proveedores', 'Ventas', 'Otros'],
   ingreso: ['Sueldo', 'Ventas', 'Servicios', 'Otros'],
