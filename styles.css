@@ -38,6 +38,8 @@
   }
 }
 * { box-sizing: border-box; }
+/* el atributo hidden tiene que ganarle a los display de botones y etiquetas */
+[hidden] { display: none !important; }
 body {
   margin: 0;
   font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;

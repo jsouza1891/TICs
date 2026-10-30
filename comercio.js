@@ -244,6 +244,14 @@ function renderProductos() {
     : `<li class="vacio">${busqueda ? 'No hay productos que coincidan' : 'Todavía no hay productos. Tocá "+ Nuevo producto".'}</li>`;
 }
 
+// Código aleatorio de 5 dígitos (10000–99999) que no use otro producto del espacio
+function codigoNuevo() {
+  const usados = new Set(datos.productos.map((x) => String(x.codigo)));
+  let c;
+  do { c = String(10000 + Math.floor(Math.random() * 90000)); } while (usados.has(c));
+  return c;
+}
+
 let productoEditando = null;
 function abrirFormProducto(p) {
   productoEditando = p ? p.id : null;
@@ -251,6 +259,7 @@ function abrirFormProducto(p) {
   f.reset();
   $('#dlgProductoTitulo').textContent = p ? 'Editar producto' : 'Nuevo producto';
   ['nombre', 'codigo', 'costo', 'precio', 'stock', 'stockMin'].forEach((k) => { f[k].value = p && p[k] != null ? p[k] : ''; });
+  if (!p) f.codigo.value = codigoNuevo(); // se puede cambiar a mano
   f.moneda.value = p ? monedaDe(p) : 'UYU';
   $('#btnEliminarProducto').hidden = !p;
   $('#dlgProducto').showModal();
