@@ -2,7 +2,7 @@
 
 const CLAVE = 'asistente-personal-v1';
 // Se muestra en Cuenta para saber qué versión está usando cada dispositivo: actualizarla al publicar
-const VERSION = '30/10/2026';
+const VERSION = '30/10/2026 b';
 const CATEGORIAS = {
   gasto: ['Personal', 'Comida', 'Servicios', 'Ocio', 'Proveedores', 'Ventas', 'Otros'],
   ingreso: ['Sueldo', 'Ventas', 'Servicios', 'Otros'],
@@ -593,6 +593,7 @@ const porOtro = (autor) => (autor && autor !== miNombre() ? autor : '');
 // Estado visible en la sección Sincronización, para poder diagnosticar problemas
 let errorSyncCodigo = null;
 let conServidor = {};
+let pendientes = {}; // por colección: cambios hechos en este dispositivo que el servidor todavía no confirmó
 function errorSync(e) {
   errorSyncCodigo = (e && e.code) || 'desconocido';
   aviso('No se pudo sincronizar');
@@ -648,6 +649,7 @@ async function alCambiarUsuario(u) {
   usuario = u;
   errorSyncCodigo = null;
   conServidor = {};
+  pendientes = {};
   if (u) {
     const r = await resolverEspacio(u);
     if (turno !== cambioUsuario) return; // cambió el usuario mientras se buscaba el espacio
@@ -661,6 +663,7 @@ async function alCambiarUsuario(u) {
       datos[col] = snap.docs.map((doc) => doc.data());
       // fromCache: todavía no hubo respuesta del servidor (sin conexión o base de datos inaccesible)
       conServidor[col] = !snap.metadata.fromCache;
+      pendientes[col] = snap.docs.filter((d) => d.metadata && d.metadata.hasPendingWrites).length;
       // con la lista completa del servidor, numera las órdenes viejas que no tienen número
       if (col === 'agenda' && conServidor.agenda) numerarOrdenesViejas();
       guardar(); render(); renderCuenta();
@@ -769,7 +772,11 @@ function renderCuenta() {
     const conClave = usuario.providerData.some((p) => p.providerId === 'password');
     const compartido = espacio && espacio !== usuario.uid
       ? `<br>👥 Espacio compartido${nombreEspacio ? `: <strong>${escapar(nombreEspacio)}</strong>` : ''}` : '';
-    el.innerHTML = `<p class="ayuda">Sesión iniciada con <strong>${escapar(nombreVisible(usuario))}</strong>.${compartido}<br>${estado}</p>
+    // Para comparar dispositivos: cambios sin subir y un código corto del espacio de datos (tiene que coincidir)
+    const sinSubir = Object.values(pendientes).reduce((a, n) => a + n, 0);
+    const avisoPendientes = sinSubir ? `<br>⏳ <strong>${sinSubir}</strong> ${sinSubir === 1 ? 'cambio' : 'cambios'} de este dispositivo todavía sin subir al servidor` : '';
+    const codigo = espacio ? `<br>Código de datos: <strong>${escapar(espacio.slice(-6))}</strong>` : '';
+    el.innerHTML = `<p class="ayuda">Sesión iniciada con <strong>${escapar(nombreVisible(usuario))}</strong>.${compartido}<br>${estado}${avisoPendientes}${codigo}</p>
       <div class="fila-botones">
         ${conClave ? '<button id="btnClave" class="secundario">Cambiar contraseña</button>' : ''}
         <button id="btnSalir" class="secundario">Cerrar sesión</button>
