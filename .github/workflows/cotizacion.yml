@@ -1,8 +1,15 @@
+# Cotización del dólar del BROU para la app: cada 30 minutos en horario bancario lee la página del
+# BROU y, si cambió, guarda cotizacion.json en la rama "cotizacion" (solo ese archivo). La app lo lee de
+# https://raw.githubusercontent.com/jsouza1891/TICs/cotizacion/cotizacion.json
 name: Cotización BROU
 on:
+  schedule:
+    # hora UTC: 11 a 23 = 8 a 20 h de Uruguay, lunes a viernes
+    - cron: '7,37 11-23 * * 1-5'
   workflow_dispatch:
 permissions:
   contents: write
+concurrency: cotizacion
 jobs:
   cotizacion:
     runs-on: ubuntu-latest
@@ -10,5 +17,23 @@ jobs:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
-          node-version: 20
-      - run: node scripts/explorar-brou.mjs
+          node-version: 22
+      - name: Traer la cotización anterior
+        run: |
+          git fetch --depth=1 origin cotizacion && git show origin/cotizacion:cotizacion.json > /tmp/cotizacion.json || echo "Primera vez"
+      - name: Leer el BROU
+        run: node scripts/cotizacion-brou.mjs /tmp/cotizacion.json
+      - name: Guardar en la rama cotizacion si cambió
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          if git rev-parse --verify -q origin/cotizacion >/dev/null; then
+            git checkout -q -B cotizacion origin/cotizacion
+          else
+            git checkout -q --orphan cotizacion && git rm -rq --cached . && git clean -fdq
+          fi
+          cp /tmp/cotizacion.json cotizacion.json
+          git add cotizacion.json
+          if git diff --cached --quiet; then echo "Sin cambios"; exit 0; fi
+          git commit -qm "Cotización BROU $(date -u +%Y-%m-%dT%H:%MZ)"
+          git push -q origin cotizacion

@@ -57,34 +57,99 @@ const fechaLocal = (iso) => { const d = new Date(iso); return `${d.getFullYear()
 const cobradoDe = (campo, id) => redondear(datos.pagos.filter((p) => p[campo] === id).reduce((s, p) => s + numero(p.monto), 0));
 
 // ---------- Cotización del dólar ----------
+// Fuente elegida por el espacio (config/general.fuenteCotizacion): una cotización del BROU, que se
+// actualiza sola, o "manual" (config/general.cotizacion, cargada a mano). Por defecto: dólar billete venta.
+// El BROU lo publica la tarea programada .github/workflows/cotizacion.yml en la rama "cotizacion".
+const URL_COTIZACION_BROU = 'https://raw.githubusercontent.com/jsouza1891/TICs/cotizacion/cotizacion.json';
+const FUENTES_COTIZACION = {
+  'billete-venta': 'BROU dólar billete, venta',
+  'billete-compra': 'BROU dólar billete, compra',
+  'ebrou-venta': 'BROU dólar eBROU, venta',
+  'ebrou-compra': 'BROU dólar eBROU, compra',
+  manual: 'Manual',
+};
+const CLAVE_BROU = CLAVE + '-brou'; // última cotización del BROU, para usarla sin conexión
+let cotizacionBrou = (() => { try { return JSON.parse(localStorage.getItem(CLAVE_BROU)); } catch (e) { return null; } })();
+
+async function actualizarCotizacionBrou() {
+  try {
+    const r = await fetch(URL_COTIZACION_BROU, { cache: 'no-store' });
+    if (!r.ok) return;
+    const d = await r.json();
+    if (!d.billete || !d.ebrou) return;
+    cotizacionBrou = d;
+    try { localStorage.setItem(CLAVE_BROU, JSON.stringify(d)); } catch (e) { /* sin almacenamiento */ }
+    render();
+  } catch (e) { /* sin conexión: queda la última conocida */ }
+}
+
 const configGeneral = () => datos.config.find((c) => c.id === 'general') || {};
-const cotizacion = () => numero(configGeneral().cotizacion);
-// Convierte entre pesos y dólares con la cotización cargada; null si hace falta y no hay
+const fuenteCotizacion = () => (FUENTES_COTIZACION[configGeneral().fuenteCotizacion] ? configGeneral().fuenteCotizacion : 'billete-venta');
+// Valor en uso y de dónde sale: {valor, texto}. Si el BROU no está disponible se usa el manual.
+function cotizacionActual() {
+  const fuente = fuenteCotizacion();
+  if (fuente !== 'manual' && cotizacionBrou) {
+    const [tipo, lado] = fuente.split('-');
+    const valor = numero((cotizacionBrou[tipo] || {})[lado]);
+    if (valor) return { valor, texto: `${FUENTES_COTIZACION[fuente]} (${fmtMomento(cotizacionBrou.actualizado)})` };
+  }
+  const manual = numero(configGeneral().cotizacion);
+  if (!manual) return { valor: 0, texto: '' };
+  const fecha = configGeneral().cotizacionFecha;
+  return { valor: manual, texto: `manual${fecha ? `, al ${fmtCorto(fecha)}` : ''}${fuente !== 'manual' ? ' (sin datos del BROU)' : ''}` };
+}
+const cotizacion = () => cotizacionActual().valor;
+// Convierte entre pesos y dólares con la cotización en uso; null si hace falta y no hay
 function convertir(monto, de, a) {
   if (de === a) return monto;
   const c = cotizacion();
   if (!c) return null;
   return redondear(de === 'USD' ? monto * c : monto / c);
 }
-function pedirCotizacion() {
-  const actual = cotizacion();
-  const v = prompt('Cotización del dólar: ¿cuántos pesos vale 1 US$?', actual ? String(actual).replace('.', ',') : '');
-  if (v === null) return;
-  const n = parseFloat(v.replace(',', '.'));
-  if (!(n > 0)) { aviso('Cotización no válida'); return; }
-  const cambios = { cotizacion: n, cotizacionFecha: hoyISO() };
+
+// Diálogo "Cambiar": elegir la fuente o cargar el valor a mano
+function abrirCotizacion() {
+  const f = $('#formCotizacion');
+  f.fuente.value = fuenteCotizacion();
+  f.manual.value = configGeneral().cotizacion || '';
+  const b = cotizacionBrou;
+  $('#cotBrou').innerHTML = b
+    ? `<table class="tabla-lineas"><tbody>
+        <tr><td></td><td class="num">Compra</td><td class="num">Venta</td></tr>
+        <tr><td>Dólar billete</td><td class="num">$ ${fmtCot(b.billete.compra)}</td><td class="num">$ ${fmtCot(b.billete.venta)}</td></tr>
+        <tr><td>Dólar eBROU</td><td class="num">$ ${fmtCot(b.ebrou.compra)}</td><td class="num">$ ${fmtCot(b.ebrou.venta)}</td></tr>
+      </tbody></table><p class="ayuda">BROU, actualizado ${fmtMomento(b.actualizado)}. Se revisa cada 30 minutos en horario bancario.</p>`
+    : '<p class="ayuda">Todavía no hay datos del BROU (hace falta conexión).</p>';
+  mostrarCampoManual();
+  $('#dlgCotizacion').showModal();
+}
+const fmtCot = (n) => numero(n).toLocaleString('es-UY', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+const mostrarCampoManual = () => { $('#campoManual').hidden = $('#formCotizacion').fuente.value !== 'manual'; };
+$('#formCotizacion').fuente.addEventListener('change', mostrarCampoManual);
+$$('.btn-cotizacion').forEach((b) => b.addEventListener('click', abrirCotizacion));
+$('#formCotizacion').addEventListener('submit', (e) => {
+  e.preventDefault();
+  const f = e.target;
+  const cambios = { fuenteCotizacion: f.fuente.value };
+  if (f.fuente.value === 'manual') {
+    const n = parseFloat(String(f.manual.value).replace(',', '.'));
+    if (!(n > 0)) { aviso('Cotización no válida'); return; }
+    Object.assign(cambios, { cotizacion: n, cotizacionFecha: hoyISO() });
+  }
   if (datos.config.some((c) => c.id === 'general')) actualizar('config', 'general', cambios);
   else agregar('config', { id: 'general', ...cambios });
+  $('#dlgCotizacion').close();
   aviso('Cotización actualizada');
-}
-$$('.btn-cotizacion').forEach((b) => b.addEventListener('click', pedirCotizacion));
+});
 function renderCotizacion() {
-  const c = cotizacion();
-  const texto = c
-    ? `US$ 1 = $ ${c.toLocaleString('es-UY', { maximumFractionDigits: 2 })}${configGeneral().cotizacionFecha ? ` (al ${fmtCorto(configGeneral().cotizacionFecha)})` : ''}`
+  const c = cotizacionActual();
+  const texto = c.valor
+    ? `US$ 1 = $ ${fmtCot(c.valor)} · ${c.texto}`
     : 'Sin cotización del dólar: cargala para convertir precios';
   $$('.cotizacion-texto').forEach((el) => { el.textContent = texto; });
 }
+actualizarCotizacionBrou();
+setInterval(actualizarCotizacionBrou, 30 * 60 * 1000);
 
 // ---------- Editor de líneas (productos y servicios) ----------
 // Se usa en órdenes (productos, a precio de venta), ventas (productos y servicios) y compras (productos, a costo).

@@ -379,6 +379,26 @@
     </div>
   </dialog>
 
+  <!-- Cotización del dólar: fuente (BROU automática o manual) -->
+  <dialog id="dlgCotizacion" class="detalle">
+    <div class="detalle-cab"><div class="detalle-titulo">Cotización del dólar</div>
+      <button class="icon" type="button" data-cerrar aria-label="Cerrar">✕</button></div>
+    <div id="cotBrou"></div>
+    <form id="formCotizacion" class="formulario">
+      <label class="etiqueta-campo">Usar para convertir precios
+        <select name="fuente">
+          <option value="billete-venta">BROU dólar billete, venta (automática)</option>
+          <option value="billete-compra">BROU dólar billete, compra (automática)</option>
+          <option value="ebrou-venta">BROU dólar eBROU, venta (automática)</option>
+          <option value="ebrou-compra">BROU dólar eBROU, compra (automática)</option>
+          <option value="manual">Manual</option>
+        </select></label>
+      <label class="etiqueta-campo" id="campoManual">Pesos por US$ 1
+        <input name="manual" type="number" inputmode="decimal" step="0.01" min="0.01" placeholder="Ej. 41,45"></label>
+      <button type="submit">Guardar</button>
+    </form>
+  </dialog>
+
   <!-- Cobro a cliente o pago a proveedor -->
   <dialog id="dlgPago" class="detalle">
     <div class="detalle-cab"><div class="detalle-titulo" id="pagoTitulo">Registrar cobro</div>
