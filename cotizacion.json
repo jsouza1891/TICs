@@ -1,13 +1,13 @@
 {
   "fuente": "BROU",
   "url": "https://www.brou.com.uy/cotizaciones",
-  "actualizado": "2026-11-12T18:48:43.567Z",
+  "actualizado": "2026-11-13T00:06:45.855Z",
   "billete": {
-    "compra": 39.5,
-    "venta": 41.7
+    "compra": 39.4,
+    "venta": 41.8
   },
   "ebrou": {
-    "compra": 40,
-    "venta": 41.2
+    "compra": 39.9,
+    "venta": 41.3
   }
 }
